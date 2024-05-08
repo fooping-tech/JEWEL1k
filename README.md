@@ -8,6 +8,7 @@
 ## 設定
 Remap(https://remap-keys.app)
 を使用してキーマップを変更することができます。
+詳しくは[こちら](https://github.com/fooping-tech/JEWEL1k/blob/main/setting/HowToCustom.md)をご覧ください。
 
 ## 補足
 専門知識があればマクロ登録やLEDの演出変更などをプログラムすることも可能です。
