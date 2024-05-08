@@ -11,7 +11,7 @@
 ## 特徴
 - CH552E採用
 - 底面電飾用RGB-LED
-- QMK Compatable
+- QMK Compatible
 - キーホルダー
 - Cherry MX互換
 
