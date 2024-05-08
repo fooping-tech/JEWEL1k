@@ -1,8 +1,7 @@
 {
-  "name": "FP1Key",
-  "vendorId": "0x4249",
-  "productId": "0x4287",
-  "menus": "qmk_rgblight",
+  "name": "JEWEL1k",
+  "vendorId": "0xFFFF",
+  "productId": "0xFFFF",
   "matrix": {"rows": 1, "cols": 1},
   "layouts": {
     "keymap": [
