@@ -1,4 +1,5 @@
-#  カスタム方法
+# JEWEL1kカスタム方法
+JEWEL1kはRemapというウェブアプリからキーの割り付けを変更することができます。
 
 ## 設定ファイルのダウンロード
 [JEWEL1k.json](https://github.com/fooping-tech/JEWEL1k/blob/main/setting/JEWEL1k.json)をダウンロードしておく
