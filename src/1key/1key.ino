@@ -149,15 +149,15 @@ void Timer2Interrupt(void) __interrupt (INT_NO_TMR2)
 //  HSVtoRGB(100,1,calcValue(counter));//黄色
 //  HSVtoRGB(140,1,calcValue(counter));//ショッキングピンク
 //  HSVtoRGB(140,0.7,calcValue(counter));//ピンク
- // HSVtoRGB(200,1,calcValue(counter));//紫
-  HSVtoRGB(250,1,calcValue(counter));//青
+//  HSVtoRGB(200,1,calcValue(counter));//紫
+//  HSVtoRGB(250,1,calcValue(counter));//青
 //  HSVtoRGB(300,1,calcValue(counter));//ライトブルー
 //  HSVtoRGB(350,1,calcValue(counter));//エメラルドグリーン
 //  HSVtoRGB(0,1,calcValue(counter));//緑
 //  HSVtoRGB(50,1,calcValue(counter));//ライムイエロー
 //  HSVtoRGB(125,1,calcValue(counter));//赤
-//  HSVtoRGB(110,1,calcValue(counter));//オレンジ
-//  HSVtoRGB(0,0,calcValue(counter));//白
+  HSVtoRGB(110,1,calcValue(counter));//オレンジ
+ // HSVtoRGB(0,0,calcValue(counter));//白
   set_pixel_for_GRB_LED(ledData,0, green,red,blue);
   neopixel_show_P1_7(ledData, NUM_BYTES);
 
@@ -227,7 +227,16 @@ void check_btn(){
 
     if (button1PressPrev != button1Press) {
       button1PressPrev = button1Press;
+      
+      //QMK仕様で動作させる
       press_qmk_key(0, 0, layerInUse, button1Press);
+      
+      //任意の文字列を書き込む
+      //Keyboard_write('H');
+      //Keyboard_write('e');
+      //Keyboard_write('l');
+      //Keyboard_write('l');
+      //Keyboard_write('o');
     }
   }
 }
