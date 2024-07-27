@@ -4,6 +4,9 @@ JEWEL1kはRemapというウェブアプリからキーの割り付けを変更�
 ## 設定ファイルのダウンロード
 [JEWEL1k.json](https://github.com/fooping-tech/JEWEL1k/blob/main/setting/JEWEL1k.json)をダウンロードしておく
 
+![image](https://github.com/user-attachments/assets/d96d98f5-fb2e-484c-ba47-265417fbf1cb)
+
+
 ## ChromeからRemapを開く
 Google Chrome(ブラウザ)で[Remap](https://remap-keys.app)にアクセスする。他のブラウザではできません。
 
