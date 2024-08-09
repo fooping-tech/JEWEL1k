@@ -15,10 +15,23 @@
 - キーホルダー
 - Cherry MX互換
 
+## 準備いただくもの
+USBマイクロbケーブルをご準備ください。
+(充電専用のケーブルは使用できません。通信可能なものを準備してください。)
+
+[推奨USBマイクロbケーブル](https://amzn.asia/d/6Fgq0Xd)
+
 ## 設定
 [Remap](https://remap-keys.app)を使用してキーマップを変更することができます。
 
 詳しくは[こちら](https://github.com/fooping-tech/JEWEL1k/blob/main/setting/HowToCustom.md)をご覧ください。
+
+
+## 動かない場合
+以下のフローに従って確認してください。
+![image](https://github.com/user-attachments/assets/9d08b356-8345-42e5-950f-88171df02ea3)
+
+[キーボードテストサイトはこちら](https://www.onlinemictest.com/ja/keyboard-test/)
 
 ## 補足
 専門知識があればマクロ登録やLEDの演出変更などをプログラムすることも可能です。
