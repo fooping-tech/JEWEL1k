@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ page.title | escape }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8d48b;
+  --fuji: #7b5ea7;
+  --beni: #c0392b;
+  --oboro: #c9a84c;
+  --dark: #0a0a0f;
+  --dark2: #12121a;
+  --white: #f5f0eb;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  font-family: "Noto Sans JP", sans-serif;
+  background: var(--dark);
+  color: var(--white);
+  overflow-x: hidden;
+  line-height: 1.8;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Playfair Display", "Noto Sans JP", serif;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: blur(20px);
+  background: rgba(10, 10, 15, 0.7);
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.3s;
+}
+.nav-logo {
+  font-family: "Playfair Display", serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.nav-links {
+  display: flex;
+  gap: 2rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+.nav-links a {
+  opacity: 0.7;
+  transition: opacity 0.3s, color 0.3s;
+}
+.nav-links a:hover {
+  opacity: 1;
+  color: var(--gold);
+}
+@media (max-width: 768px) {
+  .nav-links {
+    display: none;
+  }
+  .nav {
+    padding: 0.8rem 1.2rem;
+  }
+}
+.hero {
+  position: relative;
+  height: 100vh;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+}
+#particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+.hero-title {
+  font-size: clamp(3rem, 10vw, 7rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 40%, #fff 60%, var(--gold) 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.hero-sub {
+  font-size: clamp(1rem, 2.5vw, 1.4rem);
+  font-weight: 300;
+  margin-top: 1.2rem;
+  letter-spacing: 0.15em;
+  opacity: 0.85;
+}
+.hero-en {
+  font-family: "Playfair Display", serif;
+  font-size: 0.9rem;
+  margin-top: 0.6rem;
+  color: var(--gold);
+  opacity: 0.6;
+  letter-spacing: 0.2em;
+}
+.cta-btn {
+  display: inline-block;
+  margin-top: 2.5rem;
+  padding: 0.9rem 2.8rem;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-size: 0.9rem;
+  letter-spacing: 0.15em;
+  border-radius: 2px;
+  transition: all 0.4s;
+  cursor: pointer;
+  background: transparent;
+}
+.cta-btn:hover {
+  background: var(--gold);
+  color: var(--dark);
+  box-shadow: 0 0 30px rgba(201, 168, 76, 0.35);
+}
+.scroll-hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  opacity: 0.5;
+  animation: bounce 2s infinite;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(8px);
+  }
+}
+.photo-strip {
+  overflow: hidden;
+  padding: 1.5rem 0;
+  background: var(--dark2);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+}
+.strip-track {
+  display: flex;
+  gap: 1.5rem;
+  width: max-content;
+  animation: scrollStrip 30s linear infinite;
+}
+.strip-track:hover {
+  animation-play-state: paused;
+}
+@keyframes scrollStrip {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.strip-img {
+  height: 180px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  transition: transform 0.3s;
+}
+.strip-img:hover {
+  transform: scale(1.05);
+}
+@media (max-width: 768px) {
+  .strip-img {
+    height: 120px;
+  }
+}
+section {
+  padding: 6rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.section-title {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  text-align: center;
+  margin-bottom: 0.6rem;
+}
+.section-title span {
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.section-subtitle {
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.5;
+  margin-bottom: 3.5rem;
+  letter-spacing: 0.1em;
+}
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+.concept-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.4s, box-shadow 0.4s;
+}
+.concept-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+.concept-card img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+}
+.concept-card-body {
+  padding: 1.8rem;
+}
+.concept-card-body h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  color: var(--gold);
+}
+.concept-card-body p {
+  font-size: 0.88rem;
+  opacity: 0.7;
+  line-height: 1.9;
+}
+.colors-section {
+  background: var(--dark2);
+  padding: 6rem 2rem;
+  max-width: 100%;
+}
+.colors-section .inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5rem;
+  margin-top: 1rem;
+}
+@media (max-width: 960px) {
+  .color-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.color-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  transition: transform 0.4s, box-shadow 0.5s;
+  cursor: pointer;
+}
+.color-card:hover {
+  transform: translateY(-8px);
+}
+.color-card.fuji:hover {
+  box-shadow: 0 10px 60px rgba(123, 94, 167, 0.35);
+}
+.color-card.beni:hover {
+  box-shadow: 0 10px 60px rgba(192, 57, 43, 0.35);
+}
+.color-card.oboro:hover {
+  box-shadow: 0 10px 60px rgba(201, 168, 76, 0.35);
+}
+.color-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--dark);
+}
+.color-img-wrap img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.6s ease;
+}
+.color-img-wrap .led {
+  opacity: 0;
+}
+.color-card:hover .color-img-wrap .day {
+  opacity: 0;
+}
+.color-card:hover .color-img-wrap .led {
+  opacity: 1;
+}
+.color-glow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(to top, var(--dark2), transparent);
+  z-index: 1;
+  pointer-events: none;
+}
+.color-info {
+  position: relative;
+  padding: 1.6rem;
+  background: var(--dark2);
+}
+.color-name-jp {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+.color-name-reading {
+  font-size: 0.8rem;
+  opacity: 0.5;
+  margin-bottom: 0.4rem;
+}
+.color-meaning {
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+}
+.color-card.fuji .color-name-jp {
+  color: var(--fuji);
+}
+.color-card.beni .color-name-jp {
+  color: var(--beni);
+}
+.color-card.oboro .color-name-jp {
+  color: var(--oboro);
+}
+.color-accent-line {
+  height: 2px;
+  width: 40px;
+  margin-top: 0.8rem;
+  border-radius: 2px;
+}
+.color-card.fuji .color-accent-line {
+  background: var(--fuji);
+}
+.color-card.beni .color-accent-line {
+  background: var(--beni);
+}
+.color-card.oboro .color-accent-line {
+  background: var(--oboro);
+}
+.color-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 20px;
+  margin-top: 0.6rem;
+  opacity: 0.7;
+}
+.color-card.fuji .color-badge {
+  background: rgba(123, 94, 167, 0.2);
+  color: var(--fuji);
+}
+.color-card.beni .color-badge {
+  background: rgba(192, 57, 43, 0.2);
+  color: var(--beni);
+}
+.color-card.oboro .color-badge {
+  background: rgba(201, 168, 76, 0.2);
+  color: var(--oboro);
+}
+.lineup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 2rem;
+}
+.lineup-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 2rem 1.6rem;
+  text-align: center;
+  position: relative;
+  transition: transform 0.4s, box-shadow 0.4s;
+}
+.lineup-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+.lineup-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+.lineup-card h3 {
+  font-family: "Playfair Display", serif;
+  font-size: 1.15rem;
+  color: var(--gold);
+  margin-bottom: 0.3rem;
+}
+.lineup-card .jp-name {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin-bottom: 0.8rem;
+}
+.lineup-card p {
+  font-size: 0.82rem;
+  opacity: 0.7;
+  line-height: 1.8;
+}
+.progression {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+.progression .arrow {
+  color: var(--gold);
+  font-size: 1.2rem;
+}
+.led-section {
+  background: var(--dark);
+  padding: 6rem 2rem;
+  text-align: center;
+}
+.led-section .inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.led-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+.led-grid img {
+  width: 100%;
+  border-radius: 12px;
+  transition: transform 0.4s;
+}
+.led-grid img:hover {
+  transform: scale(1.03);
+}
+@media (max-width: 768px) {
+  .led-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+.feature-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 2rem 1.4rem;
+  text-align: center;
+  transition: transform 0.3s;
+}
+.feature-card:hover {
+  transform: translateY(-4px);
+}
+.feature-card .icon {
+  font-size: 2rem;
+  margin-bottom: 0.8rem;
+}
+.feature-card h4 {
+  font-size: 0.95rem;
+  margin-bottom: 0.4rem;
+  color: var(--gold-light);
+}
+.feature-card p {
+  font-size: 0.78rem;
+  opacity: 0.6;
+  line-height: 1.7;
+}
+.specs-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+.specs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.specs-table th,
+.specs-table td {
+  padding: 0.8rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--glass-border);
+}
+.specs-table th {
+  color: var(--gold);
+  font-weight: 500;
+  width: 40%;
+  opacity: 0.8;
+}
+.specs-table td {
+  opacity: 0.7;
+}
+.specs-img {
+  width: 100%;
+  border-radius: 12px;
+}
+@media (max-width: 768px) {
+  .specs-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+.cta-section {
+  text-align: center;
+  padding: 8rem 2rem;
+  background: linear-gradient(180deg, var(--dark2), var(--dark));
+  max-width: 100%;
+}
+.cta-section h2 {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  margin-bottom: 1rem;
+}
+.cta-section p {
+  opacity: 0.5;
+  font-size: 0.9rem;
+  margin-bottom: 2.5rem;
+}
+footer {
+  text-align: center;
+  padding: 3rem 2rem;
+  border-top: 1px solid var(--glass-border);
+  font-size: 0.75rem;
+  opacity: 0.4;
+}
+footer a {
+  color: var(--gold);
+  opacity: 0.8;
+}
+footer a:hover {
+  opacity: 1;
+}
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+</head>
+<body>
+{% assign concepts = site.concepts | sort: "order" %}
+{% assign colors = site.colors | sort: "order" %}
+{% assign lineup = site.lineup | sort: "order" %}
+{% assign features = site.features | sort: "order" %}
+
+<nav class="nav">
+  <div class="nav-logo">{{ page.brand }}</div>
+  <div class="nav-links">
+    {% for item in page.nav %}
+    <a href="{{ item.href }}">{{ item.label }}</a>
+    {% endfor %}
+    {% if page.brand_site %}
+    <a href="{{ page.brand_site.url }}" target="_blank" rel="noreferrer">{{ page.brand_site.label }}</a>
+    {% endif %}
+  </div>
+</nav>
+
+<section class="hero">
+  <canvas id="particles"></canvas>
+  <div class="hero-content">
+    <h1 class="hero-title">{{ page.hero.title }}</h1>
+    <p class="hero-sub">{{ page.hero.subtitle }}</p>
+    <p class="hero-en">{{ page.hero.english }}</p>
+    <a href="{{ page.hero.cta_href }}" class="cta-btn">{{ page.hero.cta_label }}</a>
+  </div>
+  <div class="scroll-hint">{{ page.hero.scroll_hint }}</div>
+</section>
+
+<div class="photo-strip">
+  <div class="strip-track">
+    {% for _ in (1..2) %}
+      {% for color in colors %}
+      <img class="strip-img" src="{{ color.day_image }}" alt="{{ color.name_jp }}" loading="lazy">
+      <img class="strip-img" src="{{ color.led_image }}" alt="{{ color.name_jp }} LED" loading="lazy">
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+
+<section id="concept">
+  <h2 class="section-title reveal"><span>{{ page.sections.concept.title }}</span></h2>
+  <p class="section-subtitle reveal">{{ page.sections.concept.subtitle }}</p>
+  <div class="concept-grid">
+    {% for item in concepts %}
+    <div class="concept-card reveal">
+      <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy">
+      <div class="concept-card-body">
+        <h3>{{ item.title }}</h3>
+        {{ item.content | markdownify }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="colors-section" id="colors">
+  <div class="inner">
+    <h2 class="section-title reveal"><span>{{ page.sections.colors.title }}</span></h2>
+    <p class="section-subtitle reveal">{{ page.sections.colors.subtitle }}</p>
+    <div class="color-grid">
+      {% for item in colors %}
+      <div class="color-card {{ item.theme }} reveal">
+        <div class="color-img-wrap">
+          <img class="day" src="{{ item.day_image }}" alt="{{ item.name_jp }}" loading="lazy">
+          <img class="led" src="{{ item.led_image }}" alt="{{ item.name_jp }} LED" loading="lazy">
+          <div class="color-glow"></div>
+        </div>
+        <div class="color-info">
+          <div class="color-name-jp">{{ item.name_jp }}</div>
+          <div class="color-name-reading">{{ item.reading }}</div>
+          <div class="color-meaning">{{ item.meaning }}</div>
+          <div class="color-accent-line"></div>
+          <div class="color-badge">{{ item.badge }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<section id="lineup">
+  <h2 class="section-title reveal"><span>{{ page.sections.lineup.title }}</span></h2>
+  <p class="section-subtitle reveal">{{ page.sections.lineup.subtitle }}</p>
+  <div class="progression reveal">
+    {% for step in page.progression %}
+    <span>{{ step }}</span>{% unless forloop.last %}<span class="arrow">→</span>{% endunless %}
+    {% endfor %}
+  </div>
+  <div class="lineup-grid">
+    {% for item in lineup %}
+    <div class="lineup-card reveal">
+      <div class="lineup-icon">{{ item.icon }}</div>
+      <h3>{{ item.title }}</h3>
+      <div class="jp-name">{{ item.subtitle }}</div>
+      {{ item.content | markdownify }}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="led-section">
+  <div class="inner">
+    <h2 class="section-title reveal"><span>{{ page.sections.led.title }}</span></h2>
+    <p class="section-subtitle reveal">{{ page.sections.led.subtitle }}</p>
+    <div class="led-grid reveal">
+      {% for item in colors %}
+      <img src="{{ item.led_image }}" alt="{{ item.name_jp }} LED" loading="lazy">
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<section id="features">
+  <h2 class="section-title reveal"><span>{{ page.sections.features.title }}</span></h2>
+  <p class="section-subtitle reveal">{{ page.sections.features.subtitle }}</p>
+  <div class="features-grid">
+    {% for item in features %}
+    <div class="feature-card reveal">
+      <div class="icon">{{ item.icon }}</div>
+      <h4>{{ item.title }}</h4>
+      {{ item.content | markdownify }}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section id="specs">
+  <h2 class="section-title reveal"><span>{{ page.sections.specs.title }}</span></h2>
+  <p class="section-subtitle reveal">{{ page.sections.specs.subtitle }}</p>
+  <div class="specs-wrap reveal">
+    <table class="specs-table">
+      {% for spec in page.specs %}
+      <tr><th>{{ spec.label }}</th><td>{{ spec.value }}</td></tr>
+      {% endfor %}
+    </table>
+    <img class="specs-img" src="{{ page.specs_image }}" alt="{{ page.brand }} 仕様" loading="lazy">
+  </div>
+</section>
+
+<section class="cta-section" id="purchase">
+  <h2 class="reveal">{{ page.purchase.heading_prefix }}<span style="background:linear-gradient(135deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent">{{ page.brand }}</span>{{ page.purchase.heading_suffix }}</h2>
+  <p class="reveal">{{ page.purchase.subtitle }}</p>
+  <a href="{{ page.purchase.url }}" target="_blank" rel="noreferrer" class="cta-btn reveal">{{ page.purchase.label }}</a>
+</section>
+
+<footer>
+  <p>© <span id="current-year"></span> {{ page.brand }} — All rights reserved.</p>
+  {% if page.brand_site %}
+  <p style="margin-top:0.5rem"><a href="{{ page.brand_site.url }}" target="_blank" rel="noreferrer">{{ page.brand_site.label }}</a></p>
+  {% endif %}
+  <p style="margin-top:0.5rem"><a href="{{ page.footer.github_url }}" target="_blank" rel="noreferrer">{{ page.footer.github_label }}</a></p>
+</footer>
+
+<script>
+(function () {
+  const c = document.getElementById("particles");
+  const ctx = c.getContext("2d");
+  let w;
+  let h;
+  const pts = [];
+  function resize() {
+    w = c.width = c.offsetWidth;
+    h = c.height = c.offsetHeight;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+  const n = 60;
+  for (let i = 0; i < n; i += 1) {
+    pts.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 1.8 + 0.3,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      a: Math.random() * 0.5 + 0.2
+    });
+  }
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    pts.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = w;
+      if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h;
+      if (p.y > h) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(201,168,76,${p.a})`;
+      ctx.fill();
+    });
+    for (let i = 0; i < n; i += 1) {
+      for (let j = i + 1; j < n; j += 1) {
+        const dx = pts[i].x - pts[j].x;
+        const dy = pts[i].y - pts[j].y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 140) {
+          ctx.beginPath();
+          ctx.moveTo(pts[i].x, pts[i].y);
+          ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.strokeStyle = `rgba(201,168,76,${0.12 * (1 - d / 140)})`;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add("visible");
+      obs.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll(".reveal").forEach((el) => obs.observe(el));
+
+window.addEventListener("scroll", () => {
+  document.querySelector(".nav").style.background = window.scrollY > 80 ? "rgba(10,10,15,0.92)" : "rgba(10,10,15,0.7)";
+});
+
+document.getElementById("current-year").textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

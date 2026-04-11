@@ -1,0 +1,11 @@
+title: JEWEL1k
+markdown: kramdown
+collections:
+  concepts:
+    output: false
+  colors:
+    output: false
+  lineup:
+    output: false
+  features:
+    output: false
