@@ -1,7 +1,7 @@
 ---
 order: 1
-icon: 1
-title: JSON をダウンロード
-subtitle: setting/JEWEL1k.json
+icon: 🔩
+title: lumikey starter
+subtitle: Keyboard-shaped keyholder
 ---
-先に `setting/JEWEL1k.json` を保存しておきます。Remap でキーボード定義を読み込むために必要です。
+lumikey シリーズの入口。キーボード型キーホルダーとしてのかわいさをそのままに、最初に手に取りやすいモデルです。

@@ -1,6 +1,6 @@
 ---
 order: 3
-title: ブラウザからカスタム
-image: img/hero.png
+title: lumikey はキーホルダー
+image: img/oborogane.jpeg
 ---
-JEWEL1k は Remap に対応しています。Google Chrome からアクセスし、`JEWEL1k.json` を読み込めば好きなキーや複合キーを割り当てできます。
+lumikey はキーボード型のキーホルダーシリーズです。小さなキーボードらしさを身近に楽しめる存在で、actkey と並ぶ JEWEL1k シリーズのもう一方を担います。

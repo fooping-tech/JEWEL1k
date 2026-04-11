@@ -1,6 +1,6 @@
 ---
 order: 2
-title: 光る・持ち運べる
-image: img/lumikey_complete.jpeg
+title: actkey は実際に使える
+image: img/benizakuro_led.jpeg
 ---
-底面 RGB LED とキーホルダー仕様を備えた、小さくても存在感のある 1key キーボード。バッグやキーリングにも取り付けられます。
+actkey はこのリポジトリで紹介している、実際に使える 1key キーボードです。ショートカットや好きなキーを割り当てて、日常の操作を 1 押しで実行できます。

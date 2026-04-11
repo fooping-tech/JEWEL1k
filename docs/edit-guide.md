@@ -1,7 +1,7 @@
 # JEWEL1k Landing Page Edit Guide
 
 この GitHub Pages は `docs/` 配下の Markdown を編集すると内容を更新できる構成です。
-現在の内容は `README.md` と `setting/HowToCustom.md` をもとにしたランディングページです。
+現在の内容は `README.md` と `setting/HowToCustom.md` をもとにした、`JEWEL1k actkey` 紹介ランディングページです。
 
 編集ポイント:
 

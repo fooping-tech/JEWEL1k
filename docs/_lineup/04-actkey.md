@@ -1,7 +1,7 @@
 ---
 order: 4
-icon: 4
-title: JSON を読み込みキー設定
-subtitle: IMPORT JSON / Finish
+icon: ⚡
+title: actkey
+subtitle: The real one-key keyboard
 ---
-`IMPORT JSON` でダウンロード済みファイルを読み込み、表示されたキーをドラッグ＆ドロップで変更します。`Finish` で `success` が出れば完了です。
+JEWEL1k シリーズの中で、実際に PC へ接続して使う 1key キーボードです。Remap でキー割り当てを変更でき、ショートカットや複合キーにも対応します。

@@ -1,6 +1,6 @@
 ---
 order: 1
-title: 贈る1keyキーボード
-image: img/lumikey_parts.jpeg
+title: JEWEL1k シリーズ
+image: img/fujimurasaki.jpeg
 ---
-シンプルでキュートなキーが 1 つのキーボード。宝石のようなキーキャップが、机の上や日常の景色をさりげなく彩ります。
+JEWEL1k には `lumikey` と `actkey` の 2 つの系統があります。どちらも小さなキーボードの魅力を、違う形で楽しめるシリーズです。

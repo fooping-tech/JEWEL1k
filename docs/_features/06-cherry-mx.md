@@ -3,4 +3,4 @@ order: 6
 icon: 🌐
 title: Remap カスタム
 ---
-ブラウザから好きなキーを割り当てできます。`Ctrl + C` のような複合キーも登録でき、1 キーでも使い方を広げられます。
+Google Chrome で Remap を開き、`JEWEL1k.json` を読み込めば好きなキーを割り当てできます。`Ctrl + C` のような複合キーも登録できます。
