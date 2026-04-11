@@ -11,6 +11,14 @@
   - セクション見出し
   - CTA ボタン
   - 仕様表
+- `docs/how-to-custom.md`
+  - How To Custom ページの文言
+  - Remap 設定手順
+  - 関連リンク
+- `docs/troubleshooting.md`
+  - Troubleshooting ページの文言
+  - 動かない場合の確認手順
+  - テスト用リンク
 - `docs/_concepts/*.md`
   - Concept セクションのカード
 - `docs/_colors/*.md`

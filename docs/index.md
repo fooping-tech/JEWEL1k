@@ -1,10 +1,16 @@
 ---
 layout: landing
 title: JEWEL1k actkey — 押すだけで世界が動く、実際に使える1keyキーボード。
-brand: JEWEL1k
+brand: JEWEL1k actkey
 brand_site:
   label: ブランドサイトへ戻る
   url: https://fooping-tech.github.io/jewel1k-site/
+guide_link:
+  label: 設定ガイドを見る
+  url: how-to-custom.html
+troubleshooting_link:
+  label: トラブルシューティング
+  url: troubleshooting.html
 nav:
   - label: actkeyとは
     href: "#concept"

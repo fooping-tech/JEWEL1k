@@ -612,6 +612,12 @@ footer a:hover {
     {% for item in page.nav %}
     <a href="{{ item.href }}">{{ item.label }}</a>
     {% endfor %}
+    {% if page.guide_link %}
+    <a href="{{ page.guide_link.url }}">{{ page.guide_link.label }}</a>
+    {% endif %}
+    {% if page.troubleshooting_link %}
+    <a href="{{ page.troubleshooting_link.url }}">{{ page.troubleshooting_link.label }}</a>
+    {% endif %}
     {% if page.brand_site %}
     <a href="{{ page.brand_site.url }}" target="_blank" rel="noreferrer">{{ page.brand_site.label }}</a>
     {% endif %}
@@ -744,6 +750,12 @@ footer a:hover {
   <h2 class="reveal">{{ page.purchase.heading_prefix }}<span style="background:linear-gradient(135deg,var(--gold),var(--gold-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent">{{ page.brand }}</span>{{ page.purchase.heading_suffix }}</h2>
   <p class="reveal">{{ page.purchase.subtitle }}</p>
   <a href="{{ page.purchase.url }}" target="_blank" rel="noreferrer" class="cta-btn reveal">{{ page.purchase.label }}</a>
+  {% if page.guide_link %}
+  <p class="reveal" style="margin-top:1rem; margin-bottom:0;"><a href="{{ page.guide_link.url }}" style="color:var(--gold-light); opacity:0.9;">{{ page.guide_link.label }}</a></p>
+  {% endif %}
+  {% if page.troubleshooting_link %}
+  <p class="reveal" style="margin-top:0.5rem; margin-bottom:0;"><a href="{{ page.troubleshooting_link.url }}" style="color:var(--gold-light); opacity:0.9;">{{ page.troubleshooting_link.label }}</a></p>
+  {% endif %}
 </section>
 
 <footer>
