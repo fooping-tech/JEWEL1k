@@ -80,6 +80,10 @@ __xdata uint8_t ledData[NUM_BYTES];
 #define VERYLONG_MS 3000
 #define DOUBLE_WINDOW_MS 350
 
+// HID keyboard interaction overlay. Keep this local to the HID firmware so the
+// host-controlled agent-key status color remains the base state.
+#define PRESS_RELEASE_GLOW_MS 260
+
 // ---- current LED command (via.c 経由で host が更新) -----------------------
 uint8_t curState = ST_IDLE;
 uint8_t curRisk = 0;
@@ -94,6 +98,10 @@ bool veryLongSent = false;
 // 単押し確定待ち (ダブル判定ウィンドウ)
 bool clickPending = false;
 unsigned long clickPendingMillis = 0;
+
+bool ledButtonPressed = false;
+bool ledReleaseGlowActive = false;
+unsigned long ledReleaseMillis = 0;
 
 unsigned long lastRenderMillis = 0;
 
@@ -159,6 +167,33 @@ void renderLed(unsigned long now) {
   r = (uint8_t)(((uint16_t)r * env / 255) * curBrightness / 255);
   g = (uint8_t)(((uint16_t)g * env / 255) * curBrightness / 255);
   b = (uint8_t)(((uint16_t)b * env / 255) * curBrightness / 255);
+
+  // Physical switch feedback for HID keyboard use:
+  // - while pressed: brighten the current agent-key color
+  // - just after release: a short white-tinted decay
+  // This is only a visual overlay; it does not change the protocol state.
+  uint8_t glow = 0;
+  if (ledButtonPressed) {
+    glow = curBrightness < 96 ? 96 : curBrightness;
+  } else if (ledReleaseGlowActive) {
+    unsigned long elapsed = now - ledReleaseMillis;
+    if (elapsed < PRESS_RELEASE_GLOW_MS) {
+      uint16_t remain = PRESS_RELEASE_GLOW_MS - elapsed;
+      uint8_t maxGlow = curBrightness < 96 ? 96 : curBrightness;
+      glow = (uint8_t)((uint32_t)maxGlow * remain / PRESS_RELEASE_GLOW_MS);
+    } else {
+      ledReleaseGlowActive = false;
+    }
+  }
+  if (glow > 0) {
+    uint16_t warmR = glow;
+    uint16_t warmG = (uint16_t)glow * 220 / 255;
+    uint16_t warmB = (uint16_t)glow * 120 / 255;
+    r = (uint8_t)(r + ((255 - r) * warmR / 255));
+    g = (uint8_t)(g + ((255 - g) * warmG / 255));
+    b = (uint8_t)(b + ((255 - b) * warmB / 255));
+  }
+
   // Helper accepts RGB arguments and stores them in GRB byte order.
   set_pixel_for_GRB_LED(ledData, 0, r, g, b);
   neopixel_show_P1_7(ledData, NUM_BYTES);
@@ -188,6 +223,11 @@ void checkButton(unsigned long now) {
 
   // via キーマップのキーも生かす (デフォルトは KEY_NONE で無入力)
   press_qmk_key(0, 0, layerInUse, pressed);
+  ledButtonPressed = pressed;
+  if (!pressed) {
+    ledReleaseGlowActive = true;
+    ledReleaseMillis = now;
+  }
 
   if (pressed) {
     pressStartMillis = now;
