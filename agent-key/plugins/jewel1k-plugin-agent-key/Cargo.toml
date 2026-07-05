@@ -1,0 +1,29 @@
+[package]
+name = "jewel1k-plugin-agent-key"
+description = "Tauri v2 plugin: JEWEL1k as status LED + physical approval button for AI coding agents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+links = "jewel1k-plugin-agent-key"
+
+[features]
+default = ["serial"]
+serial = ["agent-key-core/serial"]
+
+[dependencies]
+agent-key-core = { path = "../../crates/agent-key-core" }
+# default-features off: the plugin never creates webviews itself, and linking
+# wry/WebView2 makes the test binary unloadable on some Windows setups.
+tauri = { version = "2", default-features = false }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dev-dependencies]
+tauri = { version = "2", default-features = false, features = ["test"] }

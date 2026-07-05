@@ -35,3 +35,13 @@ USBマイクロbケーブルをご準備ください。
 
 ## 補足
 専門知識があればマクロ登録やLEDの演出変更などをプログラムすることも可能です。
+
+## agent-key: AIコーディングエージェント連携
+JEWEL1kを「エージェントのステータスLED + 物理承認ボタン」として使うための
+Tauri v2 plugin / CLI / ファームウェアを同梱しています。
+
+- 実装: [agent-key/](agent-key/) (Rust workspace + TypeScript bindings)
+- ファームウェア: [src/agentkey/agentkey.ino](src/agentkey/agentkey.ino)
+- ドキュメント: [docs/DESIGN.md](docs/DESIGN.md) / [docs/PROTOCOL.md](docs/PROTOCOL.md) /
+  [docs/TAURI_PLUGIN.md](docs/TAURI_PLUGIN.md) / [docs/HOOKS.md](docs/HOOKS.md)
+- フック設定例: [examples/](examples/)

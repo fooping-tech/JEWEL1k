@@ -1,0 +1,35 @@
+"$schema" = "schemas/schema.json"
+
+# Named permission sets. Approval DECISIONS are never exposed as a command,
+# so no permission can grant "approve from the webview" — decisions come
+# only from the physical button via the Rust approval queue.
+
+[[set]]
+identifier = "allow-status"
+description = "Push agent status updates to the device LED."
+permissions = ["allow-set-status"]
+
+[[set]]
+identifier = "allow-read-state"
+description = "Read current state, health and the device list."
+permissions = ["allow-get-current-state", "allow-get-health", "allow-list-devices"]
+
+[[set]]
+identifier = "allow-device"
+description = "Connect and disconnect devices. Grant only to trusted device-management UI."
+permissions = ["allow-connect", "allow-disconnect"]
+
+[[set]]
+identifier = "allow-approval"
+description = "Submit and cancel approval requests (never resolve them)."
+permissions = ["allow-request-approval", "allow-cancel-approval"]
+
+[[set]]
+identifier = "allow-config"
+description = "Change device configuration such as LED brightness."
+permissions = ["allow-set-brightness"]
+
+[[set]]
+identifier = "allow-simulate"
+description = "DANGER (dev only): inject synthetic button gestures into the mock transport. A synthetic click can approve a pending request — never grant in production builds."
+permissions = ["allow-simulate-button"]

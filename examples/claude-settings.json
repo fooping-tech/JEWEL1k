@@ -1,0 +1,51 @@
+{
+  "$comment": "Claude Code hooks for JEWEL1k agent-key. Merge into ~/.claude/settings.json or <project>/.claude/settings.json. Requires the agent-key tray app running (localhost API on 127.0.0.1:43117) and the `agent-key` CLI on PATH. See docs/HOOKS.md.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "agent-key status thinking" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agent-key hook pre-tool --risk high --timeout 120000",
+            "timeout": 180
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "agent-key status tool_running" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "agent-key status thinking" }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          { "type": "command", "command": "agent-key status needs_approval --risk medium" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "agent-key hook stop" }
+        ]
+      }
+    ]
+  }
+}
