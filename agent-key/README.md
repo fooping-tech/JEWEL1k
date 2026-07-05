@@ -180,6 +180,9 @@ cp examples/codex-hooks.json .codex/hooks.json
 
 初回または hook 変更後は Codex CLI で `/hooks` を開き、このリポジトリの hook を
 trust してください。
+hook が動かない場合は、`agent-key` が hook 実行環境の PATH に入っていない可能性が
+あります。その場合は `.codex/hooks.json` の `command` を
+`/Users/.../.local/bin/agent-key status ...` のような絶対パスに置き換えてください。
 
 古い Codex や通知だけで使う場合は、`~/.codex/config.toml` に追記:
 

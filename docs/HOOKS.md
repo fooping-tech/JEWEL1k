@@ -99,6 +99,9 @@ cp examples/codex-hooks.json .codex/hooks.json
 | `Stop` | `agent-key status done --risk none` | ターン完了で緑 |
 
 初回または hook 変更後は Codex CLI で `/hooks` を開き、該当 hook を trust する。
+hook が動かない場合は、`agent-key` が hook 実行環境の PATH に入っていない可能性がある。
+その場合は `.codex/hooks.json` の `command` を
+`/Users/.../.local/bin/agent-key status ...` のような絶対パスに置き換える。
 
 `PermissionRequest` は Codex 自身の承認 UI と同期して赤にするだけで、物理キー承認の
 結果を Codex へ返すものではない。物理キーで別途ゲートしたい処理は、シェルやスクリプトで
