@@ -32,6 +32,3 @@ log = { workspace = true }
 
 [build-dependencies]
 tauri-plugin = { version = "2", features = ["build"] }
-
-[dev-dependencies]
-tauri = { version = "2", default-features = false, features = ["test"] }

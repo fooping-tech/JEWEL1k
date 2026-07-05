@@ -1,9 +1,7 @@
 //! Integration tests: plugin + MockTransport + localhost API, no hardware
-//! and no webview (tauri MockRuntime). These cover the MVP acceptance
-//! criteria end-to-end.
+//! and no webview. These cover the MVP acceptance criteria end-to-end.
 
 use crate::server::{self, ServerConfig};
-use crate::AgentKey;
 use agent_key_core::types::{AgentState, Decision, LedPattern, RiskLevel};
 use agent_key_core::{ApprovalRequest, StatusUpdate};
 use serde_json::{json, Value};
@@ -11,20 +9,30 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::test::{mock_builder, mock_context, noop_assets};
-use tauri::Manager;
 
-type MockApp = tauri::App<tauri::test::MockRuntime>;
-
-fn build_app() -> MockApp {
-    mock_builder()
-        .plugin(crate::init())
-        .build(mock_context(noop_assets()))
-        .expect("failed to build mock app")
+struct TestApp {
+    core: Arc<crate::ManagerCore>,
 }
 
-fn core(app: &MockApp) -> Arc<crate::ManagerCore> {
-    app.state::<AgentKey>().0.clone()
+fn build_app() -> TestApp {
+    let core = Arc::new(crate::ManagerCore::new(Box::new(|_, _| {})));
+    core.connect(crate::ConnectOptions {
+        transport: Some("mock".into()),
+        port: None,
+    })
+    .expect("connect mock transport");
+    {
+        let core = core.clone();
+        std::thread::spawn(move || loop {
+            core.tick();
+            std::thread::sleep(Duration::from_millis(20));
+        });
+    }
+    TestApp { core }
+}
+
+fn core(app: &TestApp) -> Arc<crate::ManagerCore> {
+    app.core.clone()
 }
 
 /// Bare-bones HTTP helper mirroring what the CLI does.
@@ -57,7 +65,7 @@ fn http(port: u16, method: &str, path: &str, body: &Value) -> (u16, Value) {
     (status, serde_json::from_str(body_text.trim()).unwrap_or(Value::Null))
 }
 
-fn spawn_api(app: &MockApp) -> u16 {
+fn spawn_api(app: &TestApp) -> u16 {
     server::spawn(
         core(app),
         ServerConfig {
