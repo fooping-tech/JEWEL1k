@@ -37,6 +37,38 @@ Claude Code / Codex から JEWEL1k を光らせ、危険な操作の前に物理
 フックは `agent-key` コマンドを呼ぶので、**どのディレクトリからでも起動できる**
 状態にしておく必要がある。
 
+GitHub Releases の配布物を使う場合は、先に展開して `agent-key` と
+`agent-key-tray` を PATH の通った場所へ置く。詳細は
+[../agent-key/README.md](../agent-key/README.md) の「リリース配布物から使う」を参照。
+
+macOS:
+
+```sh
+tar -xzf JEWEL1k-agent-key-v0.1.0-macos-arm64.tar.gz
+cd JEWEL1k-agent-key-v0.1.0-macos-arm64
+mkdir -p "$HOME/.local/bin"
+cp agent-key agent-key-tray "$HOME/.local/bin/"
+export PATH="$HOME/.local/bin:$PATH"
+agent-key --help
+```
+
+Windows (PowerShell):
+
+```powershell
+Expand-Archive .\JEWEL1k-agent-key-v0.1.0-windows-x86_64.zip
+cd .\JEWEL1k-agent-key-v0.1.0-windows-x86_64\JEWEL1k-agent-key-v0.1.0-windows-x86_64
+New-Item -ItemType Directory -Force "$env:USERPROFILE\bin"
+Copy-Item ".\agent-key.exe" "$env:USERPROFILE\bin\agent-key.exe"
+Copy-Item ".\agent-key-tray.exe" "$env:USERPROFILE\bin\agent-key-tray.exe"
+[Environment]::SetEnvironmentVariable(
+  "Path",
+  $env:Path + ";$env:USERPROFILE\bin",
+  "User"
+)
+```
+
+ソースからビルドする場合は以下。
+
 ```sh
 cd agent-key
 
