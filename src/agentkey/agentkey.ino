@@ -169,8 +169,8 @@ void renderLed(unsigned long now) {
   r = (uint8_t)(((uint16_t)r * env / 255) * curBrightness / 255);
   g = (uint8_t)(((uint16_t)g * env / 255) * curBrightness / 255);
   b = (uint8_t)(((uint16_t)b * env / 255) * curBrightness / 255);
-  // WS2812 は GRB 順。1key.ino と同じヘルパを使用 (引数順は G,R,B)
-  set_pixel_for_GRB_LED(ledData, 0, g, r, b);
+  // Helper accepts RGB arguments and stores them in GRB byte order.
+  set_pixel_for_GRB_LED(ledData, 0, r, g, b);
   neopixel_show_P1_7(ledData, NUM_BYTES);
 }
 

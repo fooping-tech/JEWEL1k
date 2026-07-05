@@ -34,6 +34,10 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 - [x] serialport クレートによる実装 (115200bps, 10msノンブロッキング, feature `serial`)
 - [x] ポート列挙 (`list_devices` に USB VID/PID 表示)
 - [x] I/Oエラー時の切断処理 + `device-disconnected` emit
+- [x] 実機 CDC 認識確認 (macOS: `/dev/cu.usbmodemCH55x1`)
+- [x] 実機への LED コマンド送信確認 (A1 packet write)
+- [x] 実機からのボタンイベント受信確認 (B1 packet read: single/double/long)
+- [x] 承認待ち表示の実機確認 (`needs_approval` が赤速点滅)
 - [ ] 実機 (COMポート) での疎通確認: `agent-key connect serial COM5`
 - [ ] ホットプラグ(抜き差し)の再接続動作確認
 - [ ] 自動再接続 (現状は手動 connect のみ。tray app 側で実装予定)
@@ -46,9 +50,10 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 - [x] B1 イベント送信 (single/double/long/very_long/down/up/ready)
 - [x] ジェスチャ分類 (ダブル判定350ms / 長押し800ms / 超長押し3s、超長押しは押下中に即送信)
 - [x] LEDパターンレンダラ (breath/blink/double/fast、整数演算のみ、~60fps)
-- [ ] Arduino IDE (CH55xduino) でのビルド・書き込み確認
+- [x] 実機検証で判明した LED 色順ズレを修正・再書き込み確認 (`set_pixel_for_GRB_LED` へ RGB 順で渡す)
+- [x] Arduino IDE (CH55xduino) でのビルド・書き込み確認 (IDE 2.3.8。2.3.10 はコンパイルエラーあり)
+- [x] `docs/FIRMWARE_FLASHING.md` に書き込み手順を追記
 - [ ] タイミングパラメータの実機チューニング (デバウンス、ダブル判定窓)
-- [ ] 検証後、`setting/` に書き込み手順を追記
 
 ## Phase 4: Tauri tray app (未着手)
 

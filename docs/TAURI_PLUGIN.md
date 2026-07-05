@@ -144,4 +144,4 @@ agent_key.0.set_status(agent_key_core::StatusUpdate {
 1. `autoConnect: "mock"` のままアプリを起動(実機不要)
 2. `agent-key simulate single` などでボタンを疑似発火
 3. 実機を繋いだら `agent-key connect serial COM5`(または `listDevices()` から選択)
-4. ファームウェア書き込みは `src/agentkey/agentkey.ino` を Arduino IDE (CH55xduino) で
+4. ファームウェア書き込みは [FIRMWARE_FLASHING.md](FIRMWARE_FLASHING.md) を参照

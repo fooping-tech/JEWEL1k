@@ -42,6 +42,7 @@ Tauri v2 plugin / CLI / ファームウェアを同梱しています。
 
 - 実装: [agent-key/](agent-key/) (Rust workspace + TypeScript bindings)
 - ファームウェア: [src/agentkey/agentkey.ino](src/agentkey/agentkey.ino)
+- 書き込み手順: [docs/FIRMWARE_FLASHING.md](docs/FIRMWARE_FLASHING.md)
 - ドキュメント: [docs/DESIGN.md](docs/DESIGN.md) / [docs/PROTOCOL.md](docs/PROTOCOL.md) /
   [docs/TAURI_PLUGIN.md](docs/TAURI_PLUGIN.md) / [docs/HOOKS.md](docs/HOOKS.md)
 - フック設定例: [examples/](examples/)
