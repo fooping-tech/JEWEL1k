@@ -86,6 +86,9 @@ Codex に PreToolUse 相当のブロッキングフックはないが、`notify`
 notify = ["agent-key", "hook", "codex-notify"]
 ```
 
+この行は TOML のトップレベルに置く。`[projects.'...']` セクションの後ろに追記すると
+そのプロジェクトテーブル内の値になるため、通知設定として効かない場合がある。
+
 Codex は通知のたびに JSON を1引数で渡してくる。`agent-key hook codex-notify` は
 `{"type":"agent-turn-complete", ...}` を `status done`(緑)にマップし、
 未知の type は無視する(exit 0)。
@@ -93,6 +96,10 @@ Codex は通知のたびに JSON を1引数で渡してくる。`agent-key hook 
 セッション全体の演出やリスクの高いコマンドのゲートは
 `examples/codex-hooks.json` の `wrapper_commands` / `manual_approval` を参照
 (シェルラッパーで `agent-key status ...` / `agent-key approval ...` を挟む)。
+
+つまり標準の `notify` だけでは、Codex の作業開始時やツール実行時には LED は変わらず、
+ターン完了時に緑へ変わるだけ。青/黄/赤も出したい場合は、`agent-key status thinking`
+などをシェルラッパーやスクリプトから明示的に呼ぶ。
 
 ## シェルからの直接利用
 
@@ -123,3 +130,4 @@ curl -s localhost:43117/state
 curl -s -X POST localhost:43117/status -d '{"state":"thinking"}'
 curl -s -X POST "localhost:43117/approval?wait=false" -d '{"title":"x","risk":"medium"}'
 ```
+

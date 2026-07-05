@@ -155,9 +155,17 @@ Codex にはブロッキングフックがないが `notify` がある。`~/.cod
 notify = ["agent-key", "hook", "codex-notify"]
 ```
 
+これは **トップレベル** に置く。`[projects.'...']` の下に書くと、そのプロジェクト
+テーブルの項目になり、Codex 全体の通知設定として効かない場合がある。
+
 `agent-turn-complete` 通知を緑(done)にマップする。危険コマンドのゲートは
 シェルラッパーで `agent-key approval ...` を挟む(→ [HOOKS.md](HOOKS.md) の Codex 節、
 [../examples/codex-hooks.json](../examples/codex-hooks.json))。
+
+> Codex の `notify` はターン完了などの通知イベントだけで発火する。Claude Code の
+> `PreToolUse` のように、思考開始やツール実行開始を自動で細かく光らせるものではない。
+> セッション開始時に青へ変えたい場合は `agent-key status thinking` をラッパーや手動で
+> 実行する。
 
 ---
 
@@ -192,3 +200,4 @@ tray app を起動したまま、エージェントを普段どおり使う。
 トークンを要求する場合)は CLI と tray app で一致させること。
 
 コマンド一覧・curl での直接アクセス・シェルからの利用は [HOOKS.md](HOOKS.md) を参照。
+

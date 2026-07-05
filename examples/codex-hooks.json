@@ -1,6 +1,6 @@
 {
-  "$comment": "Codex CLI integration for JEWEL1k agent-key. Codex has no PreToolUse-style blocking hook; what it does have is `notify` in ~/.codex/config.toml, which runs a program with one JSON argument per notification. Point it at `agent-key hook codex-notify` (ships with the CLI): `agent-turn-complete` turns the LED green (done); unknown notification types are ignored. For richer states, wrap Codex in a shell alias that runs the `wrapper_*` commands below around the session. See docs/HOOKS.md.",
-  "config_toml": "notify = [\"agent-key\", \"hook\", \"codex-notify\"]",
+  "$comment": "Codex CLI integration for JEWEL1k agent-key. Codex has no PreToolUse-style blocking hook; what it does have is top-level `notify` in ~/.codex/config.toml, which runs a program with one JSON argument per notification. Put it before any [projects.'...'] table, or it may become a project-table value instead of the global notify setting. Point it at `agent-key hook codex-notify` (ships with the CLI): `agent-turn-complete` turns the LED green (done); unknown notification types are ignored. For richer states, wrap Codex in a shell alias that runs the `wrapper_*` commands below around the session. See docs/HOOKS.md.",
+  "config_toml": "# top-level, before any [projects.'...'] table\nnotify = [\"agent-key\", \"hook\", \"codex-notify\"]",
   "notify_events": {
     "agent-turn-complete": "agent-key status done (soft green)"
   },
@@ -18,3 +18,4 @@
     ]
   }
 }
+
