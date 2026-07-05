@@ -1,0 +1,7 @@
+{
+  "name": "agent-key-workspace",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build"
+  }
+}

@@ -1,0 +1,15 @@
+[package]
+name = "agent-key-cli"
+description = "CLI for the JEWEL1k agent-key localhost API (status LED + approval button)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "agent-key"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = { workspace = true }

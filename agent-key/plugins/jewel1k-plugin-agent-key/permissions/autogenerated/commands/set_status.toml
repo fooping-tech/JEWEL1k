@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-set-status"
+description = "Enables the set_status command without any pre-configured scope."
+commands.allow = ["set_status"]
+
+[[permission]]
+identifier = "deny-set-status"
+description = "Denies the set_status command without any pre-configured scope."
+commands.deny = ["set_status"]

@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "Main status window of the tray app",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "agent-key:default",
+    "agent-key:allow-device",
+    "agent-key:allow-config"
+  ]
+}

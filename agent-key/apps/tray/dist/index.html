@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JEWEL1k agent-key</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; padding: 16px;
+      font-family: "Segoe UI", "Hiragino Sans", sans-serif;
+      background: #16181f; color: #e6e8ee; font-size: 14px;
+    }
+    h1 { font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; }
+    #led {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #2a2d38; box-shadow: 0 0 8px rgba(0,0,0,.4);
+      transition: background .2s, box-shadow .2s;
+    }
+    section { background: #1e212b; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+    section h2 { font-size: 12px; margin: 0 0 8px; color: #8b93a7; letter-spacing: .06em; }
+    .row { display: flex; justify-content: space-between; margin: 4px 0; }
+    .row .k { color: #8b93a7; }
+    #approval { display: none; border: 1px solid #e0405a; }
+    #approval.active { display: block; }
+    #approval .title { font-weight: 600; margin-bottom: 4px; }
+    #approval .hint { color: #8b93a7; font-size: 12px; }
+    button {
+      background: #2a2f3d; color: #e6e8ee; border: 1px solid #3a4152;
+      border-radius: 6px; padding: 6px 12px; cursor: pointer; margin-right: 6px;
+    }
+    button:hover { background: #343b4d; }
+    input[type=range] { width: 100%; }
+    #devices button { margin-top: 6px; }
+    #log {
+      font-family: Consolas, monospace; font-size: 11px; color: #8b93a7;
+      max-height: 140px; overflow-y: auto; white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1><span id="led"></span> JEWEL1k agent-key <span id="conn" style="color:#8b93a7;font-size:12px"></span></h1>
+
+  <section id="approval">
+    <h2>承認要求</h2>
+    <div class="title" id="approval-title"></div>
+    <div class="row"><span class="k">リスク</span><span id="approval-risk"></span></div>
+    <div class="hint">物理キー: 単押し=承認 (highは2回) / 長押し=拒否 / 3秒押し=緊急停止</div>
+    <div style="margin-top:8px"><button id="cancel-approval">要求を取り消す</button></div>
+  </section>
+
+  <section>
+    <h2>ステータス</h2>
+    <div class="row"><span class="k">state</span><span id="state">-</span></div>
+    <div class="row"><span class="k">risk</span><span id="risk">-</span></div>
+    <div class="row"><span class="k">デバイス</span><span id="device">-</span></div>
+    <div class="row"><span class="k">輝度</span><span id="brightness-label">-</span></div>
+    <input type="range" id="brightness" min="0" max="255" step="1" />
+  </section>
+
+  <section>
+    <h2>デバイス</h2>
+    <div id="devices">読み込み中…</div>
+    <button id="refresh">再スキャン</button>
+    <button id="disconnect">切断</button>
+  </section>
+
+  <section>
+    <h2>イベントログ</h2>
+    <div id="log"></div>
+  </section>
+
+  <script>
+    const { invoke } = window.__TAURI__.core;
+    const { listen } = window.__TAURI__.event;
+    const cmd = (name, args) => invoke(`plugin:agent-key|${name}`, args);
+    const $ = (id) => document.getElementById(id);
+
+    const COLORS = {
+      idle: '#5a5f6e', thinking: '#3c78ff', tool_running: '#ffb400',
+      done: '#2ecc71', needs_approval: '#e0405a', error: '#ff3355', off: '#2a2d38',
+    };
+
+    let pendingId = null;
+
+    function logLine(text) {
+      const el = $('log');
+      el.textContent = `${new Date().toLocaleTimeString()} ${text}\n` + el.textContent;
+    }
+
+    function render(state) {
+      $('state').textContent = state.state;
+      $('risk').textContent = state.risk;
+      $('brightness').value = state.brightness;
+      $('brightness-label').textContent = state.brightness;
+      $('led').style.background = COLORS[state.state] || '#2a2d38';
+      $('led').style.boxShadow = `0 0 10px ${COLORS[state.state] || '#000'}`;
+      $('conn').textContent = state.connected ? '接続中' : '未接続';
+      const approval = state.pending_approval;
+      if (approval) {
+        pendingId = approval.id;
+        $('approval').classList.add('active');
+        $('approval-title').textContent = approval.title;
+        $('approval-risk').textContent = approval.risk;
+      } else {
+        pendingId = null;
+        $('approval').classList.remove('active');
+      }
+    }
+
+    async function refreshState() {
+      try { render(await cmd('get_current_state')); } catch (e) { logLine(`state error: ${e}`); }
+    }
+
+    async function refreshHealth() {
+      try {
+        const health = await cmd('get_health');
+        const names = (health.devices ?? []).map((d) => d.name).join(', ');
+        $('device').textContent = names || 'なし';
+      } catch (e) { logLine(`health error: ${e}`); }
+    }
+
+    async function refreshDevices() {
+      try {
+        const devices = await cmd('list_devices');
+        const box = $('devices');
+        box.innerHTML = '';
+        for (const d of devices) {
+          const b = document.createElement('button');
+          b.textContent = `${d.name} [${d.transport}]`;
+          b.onclick = async () => {
+            try {
+              await cmd('connect', { options: { transport: d.transport, port: d.port ?? undefined } });
+            } catch (e) { logLine(`connect error: ${e}`); }
+          };
+          box.appendChild(b);
+          box.appendChild(document.createElement('br'));
+        }
+        if (!devices.length) box.textContent = 'デバイスが見つかりません';
+      } catch (e) { logLine(`devices error: ${e}`); }
+    }
+
+    $('brightness').oninput = (e) => cmd('set_brightness', { value: Number(e.target.value) }).catch(() => {});
+    $('refresh').onclick = refreshDevices;
+    $('disconnect').onclick = () => cmd('disconnect', {}).catch((e) => logLine(`disconnect error: ${e}`));
+    $('cancel-approval').onclick = () => {
+      if (pendingId) cmd('cancel_approval', { id: pendingId }).catch((e) => logLine(`cancel error: ${e}`));
+    };
+
+    listen('agent-key://state-changed', (e) => render(e.payload));
+    listen('agent-key://button', (e) => logLine(`button: ${e.payload.gesture}`));
+    listen('agent-key://approval-requested', (e) => { logLine(`approval requested: ${e.payload.title}`); refreshState(); });
+    listen('agent-key://approval-progress', (e) => logLine(`approval progress: ${e.payload.clicks}/${e.payload.required}`));
+    listen('agent-key://approval-resolved', (e) => { logLine(`approval ${e.payload.decision}`); refreshState(); });
+    listen('agent-key://device-connected', (e) => { logLine(`connected: ${e.payload.name}`); refreshHealth(); refreshState(); });
+    listen('agent-key://device-disconnected', () => { logLine('disconnected'); refreshHealth(); refreshState(); });
+    listen('agent-key://error', (e) => logLine(`error: ${e.payload.message}`));
+
+    refreshState();
+    refreshHealth();
+    refreshDevices();
+    setInterval(refreshHealth, 5000);
+  </script>
+</body>
+</html>

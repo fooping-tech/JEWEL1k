@@ -1,0 +1,26 @@
+# agent-key tray app: system-tray resident host for the agent-key plugin.
+# Deliberately its own workspace (excluded from ../../Cargo.toml): it links
+# wry/WebView2, which must not leak into the plugin's test builds.
+[workspace]
+
+[package]
+name = "agent-key-tray"
+description = "JEWEL1k agent-key tray app: status LED host + physical approval button"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["fooping-tech"]
+repository = "https://github.com/fooping-tech/JEWEL1k"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-agent-key = { path = "../../plugins/jewel1k-plugin-agent-key", features = ["serial", "hid"] }
+agent-key-core = { path = "../../crates/agent-key-core", features = ["serial", "hid"] }
+serde_json = "1"
+log = "0.4"
+env_logger = "0.11"

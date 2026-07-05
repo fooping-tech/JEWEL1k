@@ -1,0 +1,80 @@
+# CI for the agent-key workspace (Rust crates + TypeScript bindings).
+# Firmware (src/**/*.ino) is NOT built here: it needs Arduino IDE + CH55xduino.
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "agent-key/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "agent-key/**"
+      - ".github/workflows/ci.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: cargo test + clippy (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: agent-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux native build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libatk1.0-dev \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libudev-dev \
+            libwebkit2gtk-4.1-dev \
+            pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: agent-key
+
+      - name: cargo test (default features)
+        run: cargo test --workspace
+
+      - name: cargo test (all features incl. hid)
+        run: cargo test --workspace --all-features
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+
+  typescript:
+    name: pnpm build (guest-js bindings)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: agent-key/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build

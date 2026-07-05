@@ -1,2 +1,4 @@
 images/
 .site-preview/
+.claude/settings.local.json
+.codex/hooks.json
