@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build release assets (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows-x86_64
+            archive: zip
+          - os: macos-13
+            name: macos-x86_64
+            archive: tar.gz
+          - os: macos-14
+            name: macos-arm64
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            agent-key
+            agent-key/apps/tray
+
+      - name: Build CLI
+        working-directory: agent-key
+        run: cargo build --release -p agent-key-cli
+
+      - name: Build tray app
+        working-directory: agent-key/apps/tray
+        run: cargo build --release
+
+      - name: Package Windows asset
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $asset = "JEWEL1k-agent-key-${{ github.ref_name }}-${{ matrix.name }}"
+          New-Item -ItemType Directory -Force "release\$asset"
+          Copy-Item "agent-key\target\release\agent-key.exe" "release\$asset\"
+          Copy-Item "agent-key\apps\tray\target\release\agent-key-tray.exe" "release\$asset\"
+          Copy-Item "agent-key\README.md" "release\$asset\README-agent-key.md"
+          Compress-Archive -Path "release\$asset\*" -DestinationPath "release\$asset.zip"
+
+      - name: Package macOS asset
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          asset="JEWEL1k-agent-key-${{ github.ref_name }}-${{ matrix.name }}"
+          mkdir -p "release/$asset"
+          cp "agent-key/target/release/agent-key" "release/$asset/"
+          cp "agent-key/apps/tray/target/release/agent-key-tray" "release/$asset/"
+          cp "agent-key/README.md" "release/$asset/README-agent-key.md"
+          tar -czf "release/$asset.tar.gz" -C release "$asset"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JEWEL1k-agent-key-${{ github.ref_name }}-${{ matrix.name }}
+          path: release/*.${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish draft GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes="Built agent-key CLI and tray app binaries for JEWEL1k.
+
+Assets include:
+- Windows x86_64 zip
+- macOS x86_64 tar.gz
+- macOS arm64 tar.gz
+
+Firmware is not built by this workflow; build src/**/*.ino with Arduino IDE + CH55xduino."
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-assets/* --clobber
+          else
+            gh release create "$TAG" release-assets/* \
+              --draft \
+              --title "JEWEL1k $TAG" \
+              --notes "$notes"
+          fi
