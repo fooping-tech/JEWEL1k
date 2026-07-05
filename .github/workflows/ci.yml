@@ -30,9 +30,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install libudev (serialport / hidapi build deps)
+      - name: Install Linux native build deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libglib2.0-dev pkg-config
 
       - uses: dtolnay/rust-toolchain@stable
         with:
