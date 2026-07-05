@@ -10,6 +10,7 @@ repository.workspace = true
 [features]
 default = []
 serial = ["dep:serialport"]
+hid = ["dep:hidapi"]
 
 [dependencies]
 serde = { workspace = true }
@@ -17,3 +18,4 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 serialport = { version = "4", optional = true }
+hidapi = { version = "2", optional = true }

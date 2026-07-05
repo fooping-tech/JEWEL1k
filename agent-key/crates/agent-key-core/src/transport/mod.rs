@@ -3,12 +3,17 @@
 //! - [`MockTransport`]: no hardware needed; logs outgoing LED packets and
 //!   lets tests / the localhost API inject button events.
 //! - `SerialTransport` (feature `serial`): USB CDC serial to the CH552E.
-//! - [`HidTransport`]: trait only for now (raw-HID backend comes later).
+//! - `HidRawTransport` (feature `hid`): QMK raw-HID compatible vendor
+//!   interface of the composite keyboard firmware.
 
+#[cfg(feature = "hid")]
+mod hid;
 mod mock;
 #[cfg(feature = "serial")]
 mod serial;
 
+#[cfg(feature = "hid")]
+pub use hid::{list_hid_devices, HidRawTransport};
 pub use mock::MockTransport;
 #[cfg(feature = "serial")]
 pub use serial::SerialTransport;
@@ -72,9 +77,10 @@ pub trait Transport: Send {
     }
 }
 
-/// Future raw-HID backend. Trait only for now: implementations will speak the
-/// same [`HostPacket`]/[`DeviceEvent`] protocol over HID feature reports so
-/// the device can stay a composite keyboard+vendor-HID without a CDC port.
+/// Raw-HID backend metadata. Implementations speak the same
+/// [`HostPacket`]/[`DeviceEvent`] protocol over 32-byte HID reports so the
+/// device can stay a composite keyboard+vendor-HID without a CDC port
+/// (see `HidRawTransport`, feature `hid`).
 pub trait HidTransport: Transport {
     fn vendor_id(&self) -> u16;
     fn product_id(&self) -> u16;
@@ -83,7 +89,7 @@ pub trait HidTransport: Transport {
 }
 
 /// Enumerate connectable devices. The mock device is always present; serial
-/// ports are listed when the `serial` feature is enabled.
+/// ports / HID interfaces are listed when the matching feature is enabled.
 pub fn list_devices() -> Vec<DeviceInfo> {
     #[allow(unused_mut)]
     let mut devices = vec![DeviceInfo {
@@ -94,6 +100,8 @@ pub fn list_devices() -> Vec<DeviceInfo> {
     }];
     #[cfg(feature = "serial")]
     devices.extend(serial::list_serial_devices());
+    #[cfg(feature = "hid")]
+    devices.extend(hid::list_hid_devices());
     devices
 }
 

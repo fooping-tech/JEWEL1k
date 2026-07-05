@@ -2,13 +2,14 @@
 
 JEWEL1k のファームウェアは Arduino IDE + CH55xduino で書き込みます。
 
-このリポジトリには用途の違うファームウェアが2つあります。書き込むファイルに合わせて
+このリポジトリには用途の違うファームウェアが3つあります。書き込むファイルに合わせて
 `USB Settings` を変えてください。
 
 | 用途 | ファイル | USB Settings |
 |------|----------|--------------|
 | 1キーキーボード / Remap 対応 | `src/1key/1key.ino` | `USER CODE w/266B USB ram` |
-| agent-key / ステータスLED + 承認ボタン | `src/agentkey/agentkey.ino` | `Default CDC` など CDC 系 |
+| agent-key / ステータスLED + 承認ボタン (CDC) | `src/agentkey/agentkey.ino` | `Default CDC` など CDC 系 |
+| agent-key 複合デバイス (キーボード + raw HID) | `src/agentkey_hid/agentkey_hid.ino` | `USER CODE w/266B USB ram` |
 
 `src/agentkey/agentkey.ino` は HID キーボードではなく USB CDC シリアルデバイスとして動きます。
 `USER CODE w/266B USB ram` で書き込むと、macOS で `/dev/cu.usbmodem*` が出ず、
@@ -59,6 +60,29 @@ ls /dev/cu.*
 ```sh
 agent-key connect serial /dev/cu.usbmodemXXXX
 ```
+
+## agent-key 複合デバイスファーム (agentkey_hid) を書き込む
+
+キーボード(QMK/via 互換)のまま agent-key も使いたい場合はこちら。
+CDC ポートは出ず、raw HID (usage page 0xFF60) で agent-key と通信します。
+
+1. Arduino IDE で `src/agentkey_hid/agentkey_hid.ino` を開く
+2. ボードを CH552 に設定する
+3. `USB Settings` を `USER CODE w/266B USB ram` に設定する(1key.ino と同じ)
+4. JEWEL1k を書き込みモードで起動し、すぐにアップロードする
+5. 書き込み完了後、USB を抜き差しする
+
+接続確認:
+
+```sh
+agent-key devices          # "JEWEL1k ... (HID 4249:4287)" が見えること
+agent-key connect hid
+```
+
+- ボタンはデフォルトで文字を入力しません (キーマップ初期値 KEY_NONE)。
+  キーとしても使う場合は https://usevia.app/ で割り当ててください
+- ※ このファームは未実機検証です。書き込み後、LED 表示とボタンイベント
+  (`agent-key state` で確認) の動作確認が必要です
 
 ## 通常の 1キーキーボードファームを書き込む
 

@@ -1,16 +1,24 @@
 [package]
-name = "jewel1k-plugin-agent-key"
+# The package MUST be named tauri-plugin-<name>: tauri derives the permission
+# namespace from CARGO_PKG_NAME (stripping only "tauri-plugin-"), and it has
+# to match the runtime plugin name "agent-key" (lib.rs Builder::new) or every
+# webview invoke fails the ACL check. The Rust lib keeps its historical name.
+name = "tauri-plugin-agent-key"
 description = "Tauri v2 plugin: JEWEL1k as status LED + physical approval button for AI coding agents"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-links = "jewel1k-plugin-agent-key"
+links = "tauri-plugin-agent-key"
+
+[lib]
+name = "jewel1k_plugin_agent_key"
 
 [features]
 default = ["serial"]
 serial = ["agent-key-core/serial"]
+hid = ["agent-key-core/hid"]
 
 [dependencies]
 agent-key-core = { path = "../../crates/agent-key-core" }

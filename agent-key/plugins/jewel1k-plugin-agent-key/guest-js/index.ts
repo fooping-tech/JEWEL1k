@@ -42,9 +42,10 @@ export interface StatusUpdate {
 }
 
 export interface ConnectOptions {
-  /** 'mock' (default) or 'serial'. */
-  transport?: 'mock' | 'serial'
-  /** Serial port name, e.g. 'COM5' or '/dev/tty.usbmodem1101'. */
+  /** 'mock' (default), 'serial' or 'hid'. */
+  transport?: 'mock' | 'serial' | 'hid'
+  /** Serial port name ('COM5', '/dev/tty.usbmodem1101') or HID device path.
+   *  For 'hid' it may be omitted to auto-pick the first JEWEL1k. */
   port?: string
 }
 
@@ -80,8 +81,12 @@ export interface DeviceInfo {
 }
 
 export interface Health {
+  /** True when at least one device link is up. */
   connected: boolean
+  /** First connected device (kept for backward compatibility). */
   device?: DeviceInfo
+  /** All connected devices. */
+  devices?: DeviceInfo[]
   /** ms since the last successful device I/O. */
   last_io_ms?: number
 }
@@ -124,8 +129,9 @@ export function connect(options?: ConnectOptions): Promise<DeviceInfo> {
   return cmd('connect', { options })
 }
 
-export function disconnect(): Promise<void> {
-  return cmd('disconnect')
+/** Disconnect one device by id, or every device when `id` is omitted. */
+export function disconnect(id?: string): Promise<void> {
+  return cmd('disconnect', { id })
 }
 
 export function getHealth(): Promise<Health> {
@@ -223,8 +229,12 @@ export function onDeviceConnected(
   return listen<DeviceInfo>('agent-key://device-connected', (e) => callback(e.payload))
 }
 
-export function onDeviceDisconnected(callback: () => void): Promise<UnlistenFn> {
-  return listen('agent-key://device-disconnected', () => callback())
+export function onDeviceDisconnected(
+  callback: (payload?: { device?: DeviceInfo }) => void,
+): Promise<UnlistenFn> {
+  return listen<{ device?: DeviceInfo }>('agent-key://device-disconnected', (e) =>
+    callback(e.payload),
+  )
 }
 
 export function onError(callback: (error: PluginError) => void): Promise<UnlistenFn> {

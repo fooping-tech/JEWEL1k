@@ -38,10 +38,23 @@ USBマイクロbケーブルをご準備ください。
 
 ## agent-key: AIコーディングエージェント連携
 JEWEL1kを「エージェントのステータスLED + 物理承認ボタン」として使うための
-Tauri v2 plugin / CLI / ファームウェアを同梱しています。
+Tauri v2 plugin / CLI / ファームウェアを同梱しています。青=思考中 / 黄=ツール実行中 /
+緑=完了 / 赤=承認待ち を LED で表示し、危険な操作を物理キーの承認で止められます。
 
+**起動方法・初期設定は [agent-key/README.md](agent-key/README.md) を参照してください。**
+最短で試すには(実機不要):
+
+```sh
+cd agent-key/apps/tray && cargo build --release   # tray app 本体
+./target/release/agent-key-tray                   # 常駐起動
+# 別ターミナルで(agent-key CLI を PATH に通した状態で)
+agent-key connect mock && agent-key status thinking
+```
+
+- セットアップ全体: [agent-key/README.md](agent-key/README.md)
 - 実装: [agent-key/](agent-key/) (Rust workspace + TypeScript bindings)
-- ファームウェア: [src/agentkey/agentkey.ino](src/agentkey/agentkey.ino)
+- ファームウェア: [src/agentkey/agentkey.ino](src/agentkey/agentkey.ino)(CDC) /
+  [src/agentkey_hid/agentkey_hid.ino](src/agentkey_hid/agentkey_hid.ino)(キーボード+raw HID)
 - 書き込み手順: [docs/FIRMWARE_FLASHING.md](docs/FIRMWARE_FLASHING.md)
 - ドキュメント: [docs/DESIGN.md](docs/DESIGN.md) / [docs/PROTOCOL.md](docs/PROTOCOL.md) /
   [docs/TAURI_PLUGIN.md](docs/TAURI_PLUGIN.md) / [docs/HOOKS.md](docs/HOOKS.md)

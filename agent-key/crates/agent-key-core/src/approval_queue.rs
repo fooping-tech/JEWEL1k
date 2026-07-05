@@ -102,6 +102,20 @@ impl ApprovalQueue {
         }))
     }
 
+    /// Cancel every pending request, e.g. because the agent moved on without
+    /// waiting for the button (auto-accept mode). Always resolves as
+    /// `Cancelled` — never `Approved` — so the safety policy is untouched.
+    pub fn cancel_all(&mut self, reason: &str) -> Vec<ApprovalResolution> {
+        self.pending
+            .drain(..)
+            .map(|p| ApprovalResolution {
+                id: p.request.id,
+                decision: Decision::Cancelled,
+                reason: Some(reason.to_string()),
+            })
+            .collect()
+    }
+
     /// Feed a button gesture. Returns zero or more queue events; gestures
     /// with no pending request return an empty vec (callers still forward
     /// the raw button event to listeners).
@@ -351,6 +365,17 @@ mod tests {
             })
         ));
         assert!(q.cancel(&id).is_none());
+    }
+
+    #[test]
+    fn cancel_all_drains_every_pending_as_cancelled() {
+        let mut q = ApprovalQueue::new();
+        q.submit(request("a", RiskLevel::Medium), 0);
+        q.submit(request("b", RiskLevel::High), 0);
+        let resolved = q.cancel_all("superseded");
+        assert_eq!(resolved.len(), 2);
+        assert!(resolved.iter().all(|r| r.decision == Decision::Cancelled));
+        assert!(q.is_empty());
     }
 
     #[test]

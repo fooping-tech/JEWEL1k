@@ -176,7 +176,8 @@ fn route(req: &Request, manager: &Arc<ManagerCore>) -> Result<(u16, Value), Stri
             Ok((200, serde_json::to_value(device).unwrap()))
         }
         ("POST", "/disconnect") => {
-            manager.disconnect().map_err(|e| e.to_string())?;
+            let id = req.body.get("id").and_then(Value::as_str);
+            manager.disconnect(id).map_err(|e| e.to_string())?;
             Ok((200, json!({ "ok": true })))
         }
         ("POST", "/status") => {

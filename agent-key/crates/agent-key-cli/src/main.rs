@@ -24,8 +24,10 @@ COMMANDS:
   devices                       list connectable devices
   health                        show device health
   state                         show current state
-  connect [mock|serial <PORT>]  connect a transport (default: mock)
-  disconnect                    disconnect the current transport
+  connect [mock|serial <PORT>|hid [PATH]]
+                                connect a transport (default: mock). Several
+                                devices can be connected at the same time
+  disconnect [ID]               disconnect one device by id, or all of them
   status <state> [--risk R] [--message M]
                                 push agent status: idle|thinking|tool_running|
                                 done|needs_approval|error|off
@@ -36,9 +38,14 @@ COMMANDS:
   cancel <id>                   cancel a pending approval
   simulate <single|double|long|very_long>
                                 inject a fake button gesture (mock only)
-  hook pre-tool [--risk R]      Claude Code PreToolUse hook: reads the hook
-                                JSON on stdin, asks for approval (exit 2 blocks)
+  hook pre-tool [--risk R] [--json]
+                                Claude Code PreToolUse hook: reads the hook
+                                JSON on stdin, asks for approval (exit 2 blocks;
+                                with --json prints a hookOutput permissionDecision
+                                and always exits 0)
   hook stop                     Claude Code Stop hook: sets status to done
+  hook codex-notify [JSON]      Codex notify handler: reads the notification
+                                JSON (argument or stdin), maps it to a status
 
 ENVIRONMENT:
   AGENT_KEY_PORT   API port (default 43117)
@@ -95,16 +102,28 @@ fn run(mut args: Vec<String>) -> i32 {
         "devices" => print_result(quick.request("GET", "/devices", None)),
         "health" => print_result(quick.request("GET", "/health", None)),
         "state" => print_result(quick.request("GET", "/state", None)),
-        "disconnect" => print_result(quick.request("POST", "/disconnect", Some(&json!({})))),
+        "disconnect" => {
+            let body = match rest.first() {
+                Some(id) => json!({ "id": id }),
+                None => json!({}),
+            };
+            print_result(quick.request("POST", "/disconnect", Some(&body)))
+        }
         "connect" => {
             let transport = rest.first().cloned().unwrap_or_else(|| "mock".into());
-            let body = if transport == "serial" {
-                let Some(p) = rest.get(1) else {
-                    return usage_error("connect serial <PORT>");
-                };
-                json!({ "transport": "serial", "port": p })
-            } else {
-                json!({ "transport": transport })
+            let body = match transport.as_str() {
+                "serial" => {
+                    let Some(p) = rest.get(1) else {
+                        return usage_error("connect serial <PORT>");
+                    };
+                    json!({ "transport": "serial", "port": p })
+                }
+                // the HID path is optional; the plugin auto-picks a JEWEL1k
+                "hid" => match rest.get(1) {
+                    Some(p) => json!({ "transport": "hid", "port": p }),
+                    None => json!({ "transport": "hid" }),
+                },
+                other => json!({ "transport": other }),
             };
             print_result(quick.request("POST", "/connect", Some(&body)))
         }
@@ -219,6 +238,7 @@ fn hook(rest: &[String], approval_client: &http::Client, quick: &http::Client) -
             let timeout_ms: u64 = opt_value(&mut rest, "--timeout")
                 .and_then(|t| t.parse().ok())
                 .unwrap_or(120_000);
+            let json_output = take_bool(&mut rest, "--json");
 
             // Claude Code pipes the hook payload on stdin.
             let mut input = String::new();
@@ -241,25 +261,67 @@ fn hook(rest: &[String], approval_client: &http::Client, quick: &http::Client) -
                 "/status",
                 Some(&json!({ "state": "needs_approval", "risk": risk })),
             );
-            let code = request_approval(
-                approval_client,
-                &format!("{tool}"),
-                &risk,
-                Some(&detail),
-                timeout_ms,
-                "claude-code",
-                true,
-            );
-            if code == 2 {
-                // exit 2 blocks the tool call in Claude Code; stderr is fed
-                // back to the model.
-                eprintln!("Blocked by physical key (JEWEL1k): the user denied this action.");
+            let body = json!({
+                "title": tool,
+                "risk": risk,
+                "timeout_ms": timeout_ms,
+                "source": "claude-code",
+                "description": detail,
+            });
+            let decision = match approval_client.request("POST", "/approval", Some(&body)) {
+                Ok(res) => res
+                    .body
+                    .get("decision")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unresolved")
+                    .to_string(),
+                Err(e) => {
+                    // API unreachable: exit 1 = non-blocking error in Claude
+                    // Code, so a stopped tray app never locks the agent out.
+                    eprintln!("error: {e}");
+                    return 1;
+                }
+            };
+            if json_output {
+                // hookOutput JSON contract: always exit 0 and let
+                // `permissionDecision` allow/deny the tool call.
+                let (permission, reason) = match decision.as_str() {
+                    "approved" => ("allow", "Approved by physical key (JEWEL1k).".to_string()),
+                    "denied" | "emergency_stopped" => (
+                        "deny",
+                        "Denied by physical key (JEWEL1k): the user rejected this action."
+                            .to_string(),
+                    ),
+                    other => (
+                        "deny",
+                        format!("No approval from the physical key (JEWEL1k): {other}."),
+                    ),
+                };
+                println!(
+                    "{}",
+                    json!({
+                        "hookSpecificOutput": {
+                            "hookEventName": "PreToolUse",
+                            "permissionDecision": permission,
+                            "permissionDecisionReason": reason,
+                        }
+                    })
+                );
+                return 0;
             }
-            if code == 3 {
-                eprintln!("No decision on the physical key before timeout; blocking.");
-                return 2;
+            match decision.as_str() {
+                "approved" => 0,
+                "denied" | "emergency_stopped" => {
+                    // exit 2 blocks the tool call in Claude Code; stderr is
+                    // fed back to the model.
+                    eprintln!("Blocked by physical key (JEWEL1k): the user denied this action.");
+                    2
+                }
+                _ => {
+                    eprintln!("No decision on the physical key before timeout; blocking.");
+                    2
+                }
             }
-            code
         }
         Some("stop") => {
             let res = quick.request("POST", "/status", Some(&json!({ "state": "done" })));
@@ -271,7 +333,33 @@ fn hook(rest: &[String], approval_client: &http::Client, quick: &http::Client) -
                 }
             }
         }
-        _ => usage_error("hook <pre-tool|stop>"),
+        Some("codex-notify") => {
+            // Codex calls the notify program with one JSON argument
+            // (`notify = ["agent-key", "hook", "codex-notify"]`); fall back
+            // to stdin so the command is easy to test manually.
+            let raw = match rest.get(1) {
+                Some(arg) => arg.clone(),
+                None => {
+                    let mut input = String::new();
+                    let _ = std::io::stdin().read_to_string(&mut input);
+                    input
+                }
+            };
+            let payload: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+            let state = match payload.get("type").and_then(Value::as_str) {
+                Some("agent-turn-complete") => "done",
+                // unknown / future notification types are ignored
+                _ => return 0,
+            };
+            match quick.request("POST", "/status", Some(&json!({ "state": state }))) {
+                Ok(_) => 0,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    1
+                }
+            }
+        }
+        _ => usage_error("hook <pre-tool|stop|codex-notify>"),
     }
 }
 

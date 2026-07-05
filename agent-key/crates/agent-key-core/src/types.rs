@@ -208,12 +208,18 @@ pub struct DeviceInfo {
     pub port: Option<String>,
 }
 
-/// Health snapshot of the plugin / device link.
+/// Health snapshot of the plugin / device links.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Health {
+    /// True when at least one device link is up.
     pub connected: bool,
+    /// First connected device (kept for backward compatibility).
     #[serde(default)]
     pub device: Option<DeviceInfo>,
+    /// All connected devices; LED packets are broadcast to every one and
+    /// button events from any of them feed the same approval queue.
+    #[serde(default)]
+    pub devices: Vec<DeviceInfo>,
     /// ms since the last packet was successfully written or read.
     #[serde(default)]
     pub last_io_ms: Option<u64>,

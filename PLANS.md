@@ -11,8 +11,8 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 | 1 | MockTransport で全機能を完成させる | ✅ 完了 |
 | 2 | SerialTransport 実装 | ✅ 実装済み / 🔲 実機検証 |
 | 3 | デバイスファームウェア (CH552E) | ✅ 実装済み / 🔲 実機書き込み・検証 |
-| 4 | Tauri tray app 本体 | 🔲 未着手 |
-| 5 | HidTransport (QMK raw-HID 互換の複合デバイス化) | 🔲 trait 定義のみ |
+| 4 | Tauri tray app 本体 | ✅ 実装済み (`agent-key/apps/tray`) / 🔲 実運用検証 |
+| 5 | HidTransport (QMK raw-HID 互換の複合デバイス化) | ✅ 実装済み (host + firmware) / 🔲 実機検証 |
 | 6 | mobile (Swift/Kotlin) 対応 | 🔲 対象外(後回しと決定) |
 
 ## Phase 1: MockTransport (完了)
@@ -38,9 +38,9 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 - [x] 実機への LED コマンド送信確認 (A1 packet write)
 - [x] 実機からのボタンイベント受信確認 (B1 packet read: single/double/long)
 - [x] 承認待ち表示の実機確認 (`needs_approval` が赤速点滅)
+- [x] 自動再接続 (tray app 側で実装: 3秒ポーリングで serial→hid の順に自動検出)
 - [ ] 実機 (COMポート) での疎通確認: `agent-key connect serial COM5`
-- [ ] ホットプラグ(抜き差し)の再接続動作確認
-- [ ] 自動再接続 (現状は手動 connect のみ。tray app 側で実装予定)
+- [ ] ホットプラグ(抜き差し)の再接続動作確認 (tray app の自動再接続で実機確認)
 
 ## Phase 3: ファームウェア (実装済み → 実機検証待ち)
 
@@ -55,29 +55,60 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 - [x] `docs/FIRMWARE_FLASHING.md` に書き込み手順を追記
 - [ ] タイミングパラメータの実機チューニング (デバウンス、ダブル判定窓)
 
-## Phase 4: Tauri tray app (未着手)
+## Phase 4: Tauri tray app (実装済み → 実運用検証待ち)
 
-- [ ] トレイ常駐アプリの雛形 (`agent-key/apps/tray/` を想定)
-- [ ] plugin 組み込み + capabilities 設定 (docs/TAURI_PLUGIN.md の手順で)
-- [ ] トレイメニュー: デバイス選択 / 接続状態表示 / 輝度調整
-- [ ] 承認要求のトースト通知 (ダブル押し「詳細表示」の受け皿)
-- [ ] シリアルポート自動検出・自動再接続
-- [ ] 起動時自動実行 (autostart)
+`agent-key/apps/tray/`。独立 workspace(wry/WebView2 をリンクするため plugin の
+テストビルドから分離)。ビルドは `cd agent-key/apps/tray && cargo build`。
 
-## Phase 5: HidTransport (trait のみ定義済み)
+- [x] トレイ常駐アプリの雛形 (`agent-key/apps/tray/`)
+- [x] plugin 組み込み + capabilities 設定 (docs/TAURI_PLUGIN.md の手順で)
+- [x] トレイメニュー: 接続状態表示 / Mock接続・切断 / 輝度調整 (25/50/100%)
+- [x] 承認要求・承認結果のトースト通知 + ダブル押しでステータスウィンドウ表示
+  (「詳細表示」の受け皿)
+- [x] シリアルポート自動検出・自動再接続 (3秒ポーリング、serial→hid の順、
+  VID/PID 4249:4287 / "CH55" / "JEWEL" でマッチ。トレイの「自動接続」でon/off)
+- [x] 起動時自動実行 (tauri-plugin-autostart。トレイメニューから切替)
+- [x] ステータスウィンドウ (dist/index.html, withGlobalTauri):
+  LED状態 / 承認要求の詳細と取消 / デバイス一覧から接続 / 輝度スライダ / イベントログ
+- [ ] 実機を挿しての自動検出・トースト通知の実運用確認
+- [ ] 配布用 bundle (現状 bundle.active=false。必要になったら icons 一式を揃えて有効化)
 
-- [ ] ファームウェアを キーボードHID + vendor HID (usage page 0xFF60) の複合デバイス化
-  (1key.ino の QMK/via 機能と agent-key の同居)
-- [ ] `hidapi` ベースの HidTransport 実装 (`transport::HidTransport` trait に準拠)
-- [ ] CDC 版ファームとの互換維持 (transport 自動判別)
+## Phase 5: HidTransport (実装済み → 実機検証待ち)
+
+- [x] ファームウェアを キーボードHID + vendor HID (usage page 0xFF60, usage 0x61) の
+  複合デバイス化: `src/agentkey_hid/agentkey_hid.ino`
+  (1key.ino の QMK/via 機能と同居。via の raw HID に A1/B1 を相乗りし、
+  コマンドID 0xA1 は via の 0x01..0x12/0xFF と非衝突。デフォルトキーマップは
+  KEY_NONE にして承認クリックでの誤入力を防止)
+- [x] `hidapi` ベースの HidRawTransport 実装 (core feature `hid`、
+  `transport::HidTransport` trait 準拠。32byte固定レポート、先頭が B1 でない
+  レポート = via トラフィックは無視)
+- [x] CDC 版ファームとの互換維持 (tray app が serial→hid の順に自動判別。
+  `agent-key connect hid` / plugin の `autoConnect: "hid"` も追加)
+- [ ] 複合デバイスファームの実機書き込み・検証 (**未実機検証**: この環境では
+  コンパイル不可。Arduino IDE 2.3.8 + CH55xduino、USB Settings=user266。
+  docs/FIRMWARE_FLASHING.md 参照)
 
 ## 継続タスク / 技術的負債
 
-- [ ] CLI の localhost API E2E テスト (現状: plugin 統合テストでAPI検証、CLIは単体テストのみ)
-- [ ] `agent-key hook pre-tool` の Claude Code hookOutput JSON 形式対応 (現状 exit code のみ)
-- [ ] Codex のフック仕様確定後、examples/codex-hooks.json を実設定に更新
-- [ ] approval キューの複数デバイス対応 (現状は単一 transport 前提)
-- [ ] CI (GitHub Actions): cargo test + pnpm build + clippy
+- [x] CLI の localhost API E2E テスト (`crates/agent-key-cli/tests/e2e.rs`:
+  実バイナリをモックAPIサーバに対して起動し、リクエスト内容・exit code・
+  hookOutput JSON を検証。9件)
+- [x] `agent-key hook pre-tool` の Claude Code hookOutput JSON 形式対応
+  (`--json` フラグ: permissionDecision allow/deny を stdout に出して exit 0。
+  examples/claude-settings.json も更新)
+- [x] Codex 連携を実設定に更新 (`notify = ["agent-key", "hook", "codex-notify"]`。
+  CLI に `hook codex-notify` を追加、agent-turn-complete → done)
+- [x] approval キューの複数デバイス対応 (manager が複数 links を保持。LED は
+  全デバイスへブロードキャスト、ボタンはどのデバイスからでも同一キューに入る。
+  `disconnect(id)` / `Health.devices` を追加)
+- [x] CI (GitHub Actions): `.github/workflows/ci.yml`
+  (ubuntu+windows で cargo test --all-features / clippy -D warnings / pnpm build)
+- [x] plugin の Cargo パッケージ名を `tauri-plugin-agent-key` に修正
+  (tauri が permission 名前空間をパッケージ名から導出するため。旧名のままだと
+  capability の `agent-key:*` が解決できず webview invoke が ACL で全拒否になる
+  潜在バグだった。Rust lib 名 `jewel1k_plugin_agent_key` は維持)
+- [ ] tray app の実機での実運用確認 (自動再接続 / トースト / autostart)
 
 ## 受け入れ条件の対応表 (MVP)
 
@@ -92,4 +123,4 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 | 7 | onButtonEvent でイベント受信 | guest-js `onButtonEvent` + `agent-key://button` emit |
 | 8 | CLI から localhost API 経由で approval 要求 | CLI `approval` コマンド + HTTP `/approval` 統合テスト |
 | 9 | Codex/Claude hook 例を提供 | examples/claude-settings.json, codex-hooks.json |
-| 10 | cargo test と pnpm build が成功 | 32 tests passed / tsc ビルド成功 |
+| 10 | cargo test と pnpm build が成功 | 42 tests passed (core 23 / plugin 8 / CLI 2 + E2E 9) / tsc ビルド成功 |

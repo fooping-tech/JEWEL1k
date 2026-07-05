@@ -5,6 +5,10 @@ members = [
   "crates/agent-key-cli",
   "plugins/jewel1k-plugin-agent-key",
 ]
+# The tray app is its own workspace: it links wry/WebView2, which must stay
+# out of this workspace's test builds (see AGENTS.md), and it pulls the full
+# tauri feature set. Build it with `cargo build` inside apps/tray.
+exclude = ["apps/tray"]
 
 [workspace.package]
 version = "0.1.0"

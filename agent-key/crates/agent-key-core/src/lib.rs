@@ -9,7 +9,7 @@
 //! - [`risk_policy`]: risk level -> approval rules (clicks required, auto-deny, ...)
 //! - [`approval_queue`]: the single source of truth for approval decisions
 //! - [`transport`]: `Transport` trait + `MockTransport` (+ `SerialTransport` with the
-//!   `serial` feature, `HidTransport` trait only)
+//!   `serial` feature, `HidRawTransport` with the `hid` feature)
 
 pub mod approval_queue;
 pub mod led_policy;

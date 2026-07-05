@@ -46,9 +46,16 @@ pub struct ButtonEventPayload {
     pub timestamp_ms: u64,
 }
 
+/// One connected device: its metadata plus the live transport. Several links
+/// can be active at once; LED packets are broadcast to all of them and button
+/// events from any of them feed the same approval queue.
+struct Link {
+    device: DeviceInfo,
+    transport: Box<dyn Transport>,
+}
+
 struct Inner {
-    transport: Option<Box<dyn Transport>>,
-    device: Option<DeviceInfo>,
+    links: Vec<Link>,
     state: AgentState,
     risk: RiskLevel,
     brightness: u8,
@@ -71,8 +78,7 @@ impl ManagerCore {
         Self {
             emit_fn,
             inner: Mutex::new(Inner {
-                transport: None,
-                device: None,
+                links: Vec::new(),
                 state: AgentState::Idle,
                 risk: RiskLevel::None,
                 brightness: 255,
@@ -106,15 +112,20 @@ impl ManagerCore {
     pub fn connect(&self, options: ConnectOptions) -> Result<DeviceInfo> {
         let kind = options.transport.as_deref().unwrap_or("mock");
         let (transport, device): (Box<dyn Transport>, DeviceInfo) = match kind {
-            "mock" => (
-                Box::new(MockTransport::new()),
-                DeviceInfo {
-                    id: "mock".into(),
-                    name: "Mock JEWEL1k (no hardware)".into(),
-                    transport: "mock".into(),
-                    port: None,
-                },
-            ),
+            "mock" => {
+                // `port` doubles as an id so tests / dev setups can attach
+                // several mock devices side by side.
+                let id = options.port.clone().unwrap_or_else(|| "mock".into());
+                (
+                    Box::new(MockTransport::new()),
+                    DeviceInfo {
+                        id,
+                        name: "Mock JEWEL1k (no hardware)".into(),
+                        transport: "mock".into(),
+                        port: None,
+                    },
+                )
+            }
             #[cfg(feature = "serial")]
             "serial" => {
                 let port = options
@@ -132,6 +143,22 @@ impl ManagerCore {
                     },
                 )
             }
+            #[cfg(feature = "hid")]
+            "hid" => {
+                let t = agent_key_core::transport::HidRawTransport::open(
+                    options.port.as_deref(),
+                )?;
+                let path = t.path().to_string();
+                (
+                    Box::new(t),
+                    DeviceInfo {
+                        id: path.clone(),
+                        name: "JEWEL1k (raw HID)".into(),
+                        transport: "hid".into(),
+                        port: Some(path),
+                    },
+                )
+            }
             other => {
                 return Err(Error::UnknownDevice(other.to_string()));
             }
@@ -139,27 +166,48 @@ impl ManagerCore {
 
         {
             let mut inner = self.inner.lock().unwrap();
-            if let Some(mut old) = inner.transport.take() {
-                old.close();
+            // Reconnecting the same device replaces its previous link.
+            if let Some(pos) = inner.links.iter().position(|l| l.device.id == device.id) {
+                let mut old = inner.links.remove(pos);
+                old.transport.close();
             }
-            inner.transport = Some(transport);
-            inner.device = Some(device.clone());
+            inner.links.push(Link {
+                device: device.clone(),
+                transport,
+            });
         }
         self.emit(EVT_DEVICE_CONNECTED, device.clone());
         self.push_led();
         Ok(device)
     }
 
-    pub fn disconnect(&self) -> Result<()> {
-        let device = {
+    /// Disconnect one device by id, or every device when `id` is `None`.
+    pub fn disconnect(&self, id: Option<&str>) -> Result<()> {
+        let removed: Vec<DeviceInfo> = {
             let mut inner = self.inner.lock().unwrap();
-            if let Some(mut t) = inner.transport.take() {
-                t.close();
+            let mut removed = Vec::new();
+            let mut i = 0;
+            while i < inner.links.len() {
+                if id.is_none() || id == Some(inner.links[i].device.id.as_str()) {
+                    let mut link = inner.links.remove(i);
+                    link.transport.close();
+                    removed.push(link.device);
+                } else {
+                    i += 1;
+                }
             }
-            inner.device.take()
+            removed
         };
-        if device.is_some() {
-            self.emit(EVT_DEVICE_DISCONNECTED, serde_json::json!({}));
+        if let Some(id) = id {
+            if removed.is_empty() {
+                return Err(Error::UnknownDevice(id.to_string()));
+            }
+        }
+        for device in removed {
+            self.emit(
+                EVT_DEVICE_DISCONNECTED,
+                serde_json::json!({ "device": device }),
+            );
         }
         Ok(())
     }
@@ -167,12 +215,9 @@ impl ManagerCore {
     pub fn get_health(&self) -> Health {
         let inner = self.inner.lock().unwrap();
         Health {
-            connected: inner
-                .transport
-                .as_ref()
-                .map(|t| t.is_connected())
-                .unwrap_or(false),
-            device: inner.device.clone(),
+            connected: inner.links.iter().any(|l| l.transport.is_connected()),
+            device: inner.links.first().map(|l| l.device.clone()),
+            devices: inner.links.iter().map(|l| l.device.clone()).collect(),
             last_io_ms: inner.last_io_ms.map(|t| self.now_ms().saturating_sub(t)),
         }
     }
@@ -180,19 +225,40 @@ impl ManagerCore {
     // ---- status / LED ------------------------------------------------
 
     pub fn set_status(&self, update: StatusUpdate) -> Result<CurrentState> {
+        let mut superseded: Vec<ApprovalResolution> = Vec::new();
         {
             let mut inner = self.inner.lock().unwrap();
-            inner.state = update.state;
             if let Some(risk) = update.risk {
                 inner.risk = risk;
             }
-            // Approvals temporarily override the LED; remember what the
-            // agent wants shown afterwards.
-            inner.resume_state = (inner.state, inner.risk);
+            if update.state == AgentState::NeedsApproval {
+                // The needs_approval status is a transient overlay (e.g. the
+                // Notification hook). Show it, but never record it as the
+                // state to resume once the queue drains.
+                inner.state = AgentState::NeedsApproval;
+            } else {
+                // The agent reports its own progress, so it is not parked on a
+                // pending approval. In auto-accept mode nobody presses the
+                // button, so an orphaned request would otherwise pin the LED
+                // to needs_approval indefinitely. Supersede it — always as
+                // Cancelled, never Approved, so the approval policy holds. In
+                // the normal blocking flow the agent is stuck waiting on the
+                // approval and emits no such status, so real gates survive.
+                if !inner.queue.is_empty() {
+                    superseded = inner
+                        .queue
+                        .cancel_all("superseded by a later agent status update");
+                }
+                inner.state = update.state;
+                inner.resume_state = (update.state, inner.risk);
+            }
             if !inner.queue.is_empty() {
-                // keep showing needs_approval while requests are pending
+                // keep showing needs_approval while requests are still pending
                 inner.state = AgentState::NeedsApproval;
             }
+        }
+        for res in superseded {
+            self.record_resolution(res);
         }
         self.push_led();
         let snapshot = self.get_current_state();
@@ -214,47 +280,57 @@ impl ManagerCore {
             state: inner.state,
             risk: inner.risk,
             brightness: inner.brightness,
-            connected: inner
-                .transport
-                .as_ref()
-                .map(|t| t.is_connected())
-                .unwrap_or(false),
+            connected: inner.links.iter().any(|l| l.transport.is_connected()),
             pending_approval: inner.queue.current().cloned(),
         }
     }
 
-    /// Send the LED packet for the current state. Errors are reported via
-    /// the error event; a missing transport is fine (dev without device).
+    /// Broadcast the LED packet for the current state to every device.
+    /// A failing link is dropped and reported; no links at all is fine
+    /// (dev without device).
     fn push_led(&self) {
-        let mut inner = self.inner.lock().unwrap();
-        let packet = led_policy::packet_for(inner.state, inner.risk, inner.brightness);
-        let now = self.now_ms();
-        let mut failure = None;
-        if let Some(t) = inner.transport.as_mut() {
-            match t.send_packet(&packet) {
-                Ok(()) => inner.last_io_ms = Some(now),
-                Err(e) => failure = Some(e.to_string()),
+        let mut failures: Vec<(DeviceInfo, String)> = Vec::new();
+        {
+            let mut inner = self.inner.lock().unwrap();
+            let packet = led_policy::packet_for(inner.state, inner.risk, inner.brightness);
+            let now = self.now_ms();
+            if inner.links.is_empty() {
+                log::debug!("no transport connected; LED packet skipped: {packet:?}");
             }
-        } else {
-            log::debug!("no transport connected; LED packet skipped: {packet:?}");
+            let mut sent = false;
+            let mut i = 0;
+            while i < inner.links.len() {
+                match inner.links[i].transport.send_packet(&packet) {
+                    Ok(()) => {
+                        sent = true;
+                        i += 1;
+                    }
+                    Err(e) => {
+                        let mut link = inner.links.remove(i);
+                        link.transport.close();
+                        failures.push((link.device, e.to_string()));
+                    }
+                }
+            }
+            if sent {
+                inner.last_io_ms = Some(now);
+            }
         }
-        drop(inner);
-        if let Some(msg) = failure {
-            self.handle_transport_failure(&msg);
+        for (device, msg) in failures {
+            self.report_link_failure(device, &msg);
         }
     }
 
-    fn handle_transport_failure(&self, msg: &str) {
-        log::error!("transport failure: {msg}");
-        {
-            let mut inner = self.inner.lock().unwrap();
-            if let Some(mut t) = inner.transport.take() {
-                t.close();
-            }
-            inner.device = None;
-        }
-        self.emit(EVT_ERROR, serde_json::json!({ "message": msg }));
-        self.emit(EVT_DEVICE_DISCONNECTED, serde_json::json!({}));
+    fn report_link_failure(&self, device: DeviceInfo, msg: &str) {
+        log::error!("transport failure on {}: {msg}", device.id);
+        self.emit(
+            EVT_ERROR,
+            serde_json::json!({ "message": msg, "device": device.clone() }),
+        );
+        self.emit(
+            EVT_DEVICE_DISCONNECTED,
+            serde_json::json!({ "device": device }),
+        );
     }
 
     // ---- approvals -----------------------------------------------------
@@ -285,6 +361,11 @@ impl ManagerCore {
                 req.id = res.id.clone();
                 self.emit(EVT_APPROVAL_REQUESTED, req);
                 self.record_resolution(res.clone());
+                // Immediate policy resolution (e.g. critical -> denied) never
+                // set NeedsApproval here, but a hook may have flipped the LED
+                // red via /status just before submitting. Restore the agent's
+                // own state so the red indicator does not linger.
+                self.after_queue_change();
             }
         }
         Ok(outcome)
@@ -361,23 +442,42 @@ impl ManagerCore {
         self.emit(EVT_STATE_CHANGED, self.get_current_state());
     }
 
-    /// Last LED packet written to the transport (mock introspection).
+    /// Last LED packet written to a logging transport (mock introspection).
     pub fn last_sent_packet(&self) -> Option<agent_key_core::HostPacket> {
         self.inner
             .lock()
             .unwrap()
-            .transport
-            .as_ref()
-            .and_then(|t| t.last_packet())
+            .links
+            .iter()
+            .find_map(|l| l.transport.last_packet())
+    }
+
+    /// Same, but for one specific device id (multi-device introspection).
+    pub fn last_sent_packet_for(&self, id: &str) -> Option<agent_key_core::HostPacket> {
+        self.inner
+            .lock()
+            .unwrap()
+            .links
+            .iter()
+            .find(|l| l.device.id == id)
+            .and_then(|l| l.transport.last_packet())
     }
 
     // ---- device events / poll loop -------------------------------------
 
     pub fn simulate_button(&self, gesture: ButtonGesture) -> Result<()> {
         let mut inner = self.inner.lock().unwrap();
-        let t = inner.transport.as_mut().ok_or(Error::NotConnected)?;
-        t.inject_event(DeviceEvent::Button { gesture })?;
-        Ok(())
+        if inner.links.is_empty() {
+            return Err(Error::NotConnected);
+        }
+        let mut last_err = Error::Transport(agent_key_core::TransportError::Unsupported);
+        for link in inner.links.iter_mut() {
+            match link.transport.inject_event(DeviceEvent::Button { gesture }) {
+                Ok(()) => return Ok(()),
+                Err(e) => last_err = Error::Transport(e),
+            }
+        }
+        Err(last_err)
     }
 
     /// One iteration of the poll loop: drain device events, expire timeouts.
@@ -386,27 +486,37 @@ impl ManagerCore {
 
         // Drain device events without holding the lock across emits.
         let mut events: Vec<DeviceEvent> = Vec::new();
-        let mut failure: Option<String> = None;
+        let mut failures: Vec<(DeviceInfo, String)> = Vec::new();
         {
             let mut inner = self.inner.lock().unwrap();
-            if let Some(t) = inner.transport.as_mut() {
+            let mut i = 0;
+            while i < inner.links.len() {
+                let mut failed: Option<String> = None;
                 loop {
-                    match t.poll_event() {
+                    match inner.links[i].transport.poll_event() {
                         Ok(Some(ev)) => events.push(ev),
                         Ok(None) => break,
                         Err(e) => {
-                            failure = Some(e.to_string());
+                            failed = Some(e.to_string());
                             break;
                         }
                     }
                 }
-                if !events.is_empty() {
-                    inner.last_io_ms = Some(now);
+                match failed {
+                    Some(msg) => {
+                        let mut link = inner.links.remove(i);
+                        link.transport.close();
+                        failures.push((link.device, msg));
+                    }
+                    None => i += 1,
                 }
             }
+            if !events.is_empty() {
+                inner.last_io_ms = Some(now);
+            }
         }
-        if let Some(msg) = failure {
-            self.handle_transport_failure(&msg);
+        for (device, msg) in failures {
+            self.report_link_failure(device, &msg);
         }
 
         let mut queue_events: Vec<QueueEvent> = Vec::new();

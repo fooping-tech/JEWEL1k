@@ -4,8 +4,8 @@
 
 use crate::server::{self, ServerConfig};
 use crate::AgentKey;
-use agent_key_core::types::{AgentState, LedPattern, RiskLevel};
-use agent_key_core::StatusUpdate;
+use agent_key_core::types::{AgentState, Decision, LedPattern, RiskLevel};
+use agent_key_core::{ApprovalRequest, StatusUpdate};
 use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -224,6 +224,149 @@ fn status_and_health_roundtrip_over_http() {
     let (status, brightness) = http(port, "POST", "/brightness", &json!({ "value": 42 }));
     assert_eq!(status, 200);
     assert_eq!(brightness["brightness"], 42);
+}
+
+#[test]
+fn multiple_devices_share_led_broadcast_and_approval_queue() {
+    let app = build_app();
+    let core_ = core(&app);
+    let port = spawn_api(&app);
+
+    // The plugin auto-connected "mock"; attach a second mock device.
+    core_
+        .connect(crate::ConnectOptions {
+            transport: Some("mock".into()),
+            port: Some("mock2".into()),
+        })
+        .unwrap();
+    let health = core_.get_health();
+    assert_eq!(health.devices.len(), 2);
+    assert!(health.connected);
+
+    // LED updates are broadcast to every connected device.
+    core_
+        .set_status(StatusUpdate {
+            state: AgentState::Thinking,
+            risk: None,
+            message: None,
+        })
+        .unwrap();
+    for id in ["mock", "mock2"] {
+        let packet = core_.last_sent_packet_for(id).expect("packet on each device");
+        assert_eq!(packet.state, AgentState::Thinking);
+    }
+
+    // A button event from any device resolves the shared queue.
+    let handle = std::thread::spawn(move || {
+        http(
+            port,
+            "POST",
+            "/approval",
+            &json!({ "title": "multi-device", "risk": "medium", "timeout_ms": 10000 }),
+        )
+    });
+    std::thread::sleep(Duration::from_millis(300));
+    http(port, "POST", "/simulate", &json!({ "gesture": "single" }));
+    let (status, body) = handle.join().unwrap();
+    assert_eq!(status, 200);
+    assert_eq!(body["decision"], "approved");
+
+    // Disconnecting one device by id keeps the other link alive.
+    let (status, _) = http(port, "POST", "/disconnect", &json!({ "id": "mock2" }));
+    assert_eq!(status, 200);
+    let health = core_.get_health();
+    assert_eq!(health.devices.len(), 1);
+    assert_eq!(health.devices[0].id, "mock");
+    assert!(health.connected);
+}
+
+#[test]
+fn agent_status_supersedes_orphaned_approval() {
+    let app = build_app();
+    let core = core(&app);
+
+    // Auto-accept mode: a gate is requested but nobody presses the button.
+    let outcome = core
+        .request_approval(ApprovalRequest {
+            id: String::new(),
+            title: "git push".into(),
+            description: None,
+            risk: RiskLevel::High,
+            timeout_ms: Some(120_000),
+            source: Some("claude-code".into()),
+        })
+        .unwrap();
+    let id = match outcome {
+        agent_key_core::SubmitOutcome::Pending { id } => id,
+        other => panic!("expected pending, got {other:?}"),
+    };
+    // While pending the LED shows needs_approval (red).
+    assert_eq!(
+        core.last_sent_packet().unwrap().state,
+        AgentState::NeedsApproval
+    );
+
+    // The agent moves on and reports its own progress. The orphaned approval
+    // must be superseded so the LED does not stay red forever.
+    core.set_status(StatusUpdate {
+        state: AgentState::Thinking,
+        risk: None,
+        message: None,
+    })
+    .unwrap();
+
+    assert_eq!(core.last_sent_packet().unwrap().state, AgentState::Thinking);
+    let state = core.get_current_state();
+    assert_eq!(state.state, AgentState::Thinking);
+    assert!(state.pending_approval.is_none(), "queue must be drained");
+    // Superseded == Cancelled, never Approved (safety invariant).
+    assert_eq!(
+        core.get_resolution(&id).map(|r| r.decision),
+        Some(Decision::Cancelled)
+    );
+}
+
+#[test]
+fn needs_approval_status_does_not_pin_the_resume_state() {
+    let app = build_app();
+    let core = core(&app);
+
+    // Hook order: the agent is thinking, then a hook flips the LED red via a
+    // needs_approval status just before submitting a critical request.
+    core.set_status(StatusUpdate {
+        state: AgentState::Thinking,
+        risk: None,
+        message: None,
+    })
+    .unwrap();
+    core.set_status(StatusUpdate {
+        state: AgentState::NeedsApproval,
+        risk: Some(RiskLevel::Critical),
+        message: None,
+    })
+    .unwrap();
+    assert_eq!(
+        core.last_sent_packet().unwrap().state,
+        AgentState::NeedsApproval
+    );
+
+    // Critical resolves immediately as denied; the LED must return to the
+    // agent's own state (thinking), not stay stuck on needs_approval.
+    let outcome = core
+        .request_approval(ApprovalRequest {
+            id: String::new(),
+            title: "rm -rf /".into(),
+            description: None,
+            risk: RiskLevel::Critical,
+            timeout_ms: None,
+            source: None,
+        })
+        .unwrap();
+    assert!(matches!(
+        outcome,
+        agent_key_core::SubmitOutcome::Resolved(_)
+    ));
+    assert_eq!(core.last_sent_packet().unwrap().state, AgentState::Thinking);
 }
 
 #[test]

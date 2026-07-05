@@ -25,7 +25,7 @@ button simulation must be granted explicitly.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-cancel-approval`
+`agent-key:allow-cancel-approval`
 
 </td>
 <td>
@@ -38,7 +38,7 @@ Enables the cancel_approval command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-cancel-approval`
+`agent-key:deny-cancel-approval`
 
 </td>
 <td>
@@ -51,7 +51,7 @@ Denies the cancel_approval command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-connect`
+`agent-key:allow-connect`
 
 </td>
 <td>
@@ -64,7 +64,7 @@ Enables the connect command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-connect`
+`agent-key:deny-connect`
 
 </td>
 <td>
@@ -77,7 +77,7 @@ Denies the connect command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-disconnect`
+`agent-key:allow-disconnect`
 
 </td>
 <td>
@@ -90,7 +90,7 @@ Enables the disconnect command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-disconnect`
+`agent-key:deny-disconnect`
 
 </td>
 <td>
@@ -103,7 +103,7 @@ Denies the disconnect command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-get-current-state`
+`agent-key:allow-get-current-state`
 
 </td>
 <td>
@@ -116,7 +116,7 @@ Enables the get_current_state command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-get-current-state`
+`agent-key:deny-get-current-state`
 
 </td>
 <td>
@@ -129,7 +129,7 @@ Denies the get_current_state command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-get-health`
+`agent-key:allow-get-health`
 
 </td>
 <td>
@@ -142,7 +142,7 @@ Enables the get_health command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-get-health`
+`agent-key:deny-get-health`
 
 </td>
 <td>
@@ -155,7 +155,7 @@ Denies the get_health command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-list-devices`
+`agent-key:allow-list-devices`
 
 </td>
 <td>
@@ -168,7 +168,7 @@ Enables the list_devices command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-list-devices`
+`agent-key:deny-list-devices`
 
 </td>
 <td>
@@ -181,7 +181,7 @@ Denies the list_devices command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-request-approval`
+`agent-key:allow-request-approval`
 
 </td>
 <td>
@@ -194,7 +194,7 @@ Enables the request_approval command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-request-approval`
+`agent-key:deny-request-approval`
 
 </td>
 <td>
@@ -207,7 +207,7 @@ Denies the request_approval command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-set-brightness`
+`agent-key:allow-set-brightness`
 
 </td>
 <td>
@@ -220,7 +220,7 @@ Enables the set_brightness command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-set-brightness`
+`agent-key:deny-set-brightness`
 
 </td>
 <td>
@@ -233,7 +233,7 @@ Denies the set_brightness command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-set-status`
+`agent-key:allow-set-status`
 
 </td>
 <td>
@@ -246,7 +246,7 @@ Enables the set_status command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-set-status`
+`agent-key:deny-set-status`
 
 </td>
 <td>
@@ -259,7 +259,7 @@ Denies the set_status command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-simulate-button`
+`agent-key:allow-simulate-button`
 
 </td>
 <td>
@@ -272,7 +272,7 @@ Enables the simulate_button command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:deny-simulate-button`
+`agent-key:deny-simulate-button`
 
 </td>
 <td>
@@ -285,7 +285,7 @@ Denies the simulate_button command without any pre-configured scope.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-status`
+`agent-key:allow-status`
 
 </td>
 <td>
@@ -298,7 +298,7 @@ Push agent status updates to the device LED.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-read-state`
+`agent-key:allow-read-state`
 
 </td>
 <td>
@@ -311,7 +311,7 @@ Read current state, health and the device list.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-device`
+`agent-key:allow-device`
 
 </td>
 <td>
@@ -324,7 +324,7 @@ Connect and disconnect devices. Grant only to trusted device-management UI.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-approval`
+`agent-key:allow-approval`
 
 </td>
 <td>
@@ -337,7 +337,7 @@ Submit and cancel approval requests (never resolve them).
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-config`
+`agent-key:allow-config`
 
 </td>
 <td>
@@ -350,7 +350,7 @@ Change device configuration such as LED brightness.
 <tr>
 <td>
 
-`jewel1k-plugin-agent-key:allow-simulate`
+`agent-key:allow-simulate`
 
 </td>
 <td>

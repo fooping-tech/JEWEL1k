@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "agent-key hook pre-tool --risk high --timeout 120000",
+            "command": "agent-key hook pre-tool --risk high --timeout 120000 --json",
             "timeout": 180
           }
         ]

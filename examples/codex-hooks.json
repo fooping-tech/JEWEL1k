@@ -1,36 +1,20 @@
 {
-  "$comment": "Codex CLI integration for JEWEL1k agent-key. Codex's hook/notify surface is still evolving, so this file is a command reference: wire these commands into ~/.codex/config.toml (notify = [...]) or an exec-wrapper script. See docs/HOOKS.md.",
-  "hooks": {
-    "on_task_start": {
-      "command": ["agent-key", "status", "thinking"],
-      "description": "Blue breathing while Codex is working"
-    },
-    "on_exec_command_begin": {
-      "command": ["agent-key", "status", "tool_running"],
-      "description": "Yellow while a shell command runs"
-    },
-    "on_exec_approval_required": {
-      "command": [
-        "agent-key", "approval", "Codex wants to run a command",
-        "--risk", "high", "--timeout", "120000", "--source", "codex"
-      ],
-      "description": "Red double blink; blocks until the physical key decides. Exit code 0=approve, 2=deny, 3=timeout (treat non-zero as deny).",
-      "exit_code_mapping": { "0": "approve", "2": "deny", "3": "deny" }
-    },
-    "on_patch_approval_required": {
-      "command": [
-        "agent-key", "approval", "Codex wants to apply a patch",
-        "--risk", "medium", "--source", "codex"
-      ],
-      "exit_code_mapping": { "0": "approve", "2": "deny", "3": "deny" }
-    },
-    "on_task_complete": {
-      "command": ["agent-key", "status", "done"],
-      "description": "Soft green when the turn finishes"
-    },
-    "on_error": {
-      "command": ["agent-key", "status", "error"]
-    }
+  "$comment": "Codex CLI integration for JEWEL1k agent-key. Codex has no PreToolUse-style blocking hook; what it does have is `notify` in ~/.codex/config.toml, which runs a program with one JSON argument per notification. Point it at `agent-key hook codex-notify` (ships with the CLI): `agent-turn-complete` turns the LED green (done); unknown notification types are ignored. For richer states, wrap Codex in a shell alias that runs the `wrapper_*` commands below around the session. See docs/HOOKS.md.",
+  "config_toml": "notify = [\"agent-key\", \"hook\", \"codex-notify\"]",
+  "notify_events": {
+    "agent-turn-complete": "agent-key status done (soft green)"
   },
-  "notify_example_config_toml": "notify = [\"agent-key\", \"status\", \"needs_approval\"]"
+  "wrapper_commands": {
+    "$comment": "Optional: run these around a Codex session (shell alias/wrapper) until Codex grows lifecycle hooks.",
+    "before_session": ["agent-key", "status", "thinking"],
+    "after_session": ["agent-key", "status", "idle"],
+    "on_error": ["agent-key", "status", "error"]
+  },
+  "manual_approval": {
+    "$comment": "Codex approvals stay in the terminal; to additionally gate a risky command on the physical key, run this from a script and treat non-zero exit as deny (0=approve, 2=deny, 3=timeout).",
+    "command": [
+      "agent-key", "approval", "Codex wants to run a command",
+      "--risk", "high", "--timeout", "120000", "--source", "codex"
+    ]
+  }
 }

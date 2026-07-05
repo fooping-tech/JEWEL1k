@@ -44,9 +44,10 @@ pub async fn connect(
     }))
 }
 
+/// Disconnect one device by id, or every device when `id` is omitted.
 #[command]
-pub async fn disconnect(agent_key: State<'_, AgentKey>) -> Result<()> {
-    agent_key.0.disconnect()
+pub async fn disconnect(agent_key: State<'_, AgentKey>, id: Option<String>) -> Result<()> {
+    agent_key.0.disconnect(id.as_deref())
 }
 
 #[command]

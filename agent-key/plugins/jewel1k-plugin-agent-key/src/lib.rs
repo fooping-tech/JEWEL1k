@@ -55,7 +55,8 @@ pub struct Config {
     pub http_port: u16,
     /// Optional shared secret; clients send it as `x-agent-key-token`.
     pub http_token: Option<String>,
-    /// Transport to connect at startup: "mock", "serial:<PORT>" or "none".
+    /// Transport to connect at startup: "mock", "serial:<PORT>", "hid",
+    /// "hid:<PATH>" or "none".
     pub auto_connect: String,
 }
 
@@ -104,10 +105,22 @@ pub fn init<R: Runtime>() -> TauriPlugin<R, Option<Config>> {
                         log::warn!("auto-connect mock failed: {e}");
                     }
                 }
+                "hid" => {
+                    if let Err(e) = core.connect(ConnectOptions {
+                        transport: Some("hid".into()),
+                        port: None,
+                    }) {
+                        log::warn!("auto-connect hid failed: {e}");
+                    }
+                }
                 other => {
-                    if let Some(port) = other.strip_prefix("serial:") {
+                    let parsed = other
+                        .strip_prefix("serial:")
+                        .map(|port| ("serial", port))
+                        .or_else(|| other.strip_prefix("hid:").map(|path| ("hid", path)));
+                    if let Some((transport, port)) = parsed {
                         if let Err(e) = core.connect(ConnectOptions {
-                            transport: Some("serial".into()),
+                            transport: Some(transport.into()),
                             port: Some(port.to_string()),
                         }) {
                             log::warn!("auto-connect {other} failed: {e}");

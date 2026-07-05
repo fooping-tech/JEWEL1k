@@ -3,8 +3,13 @@
 Claude Code / Codex などのコーディングエージェントから JEWEL1k を光らせ、
 危険な操作の前に物理キーの承認を挟むための設定。
 
-前提: agent-key plugin を組み込んだ Tauri アプリが起動しており、
-localhost API (デフォルト `127.0.0.1:43117`) が有効なこと。
+> **初めて設定する場合は [HOOKS_SETUP.md](HOOKS_SETUP.md)(番号付きセットアップ
+> ガイド)から。** このファイルはコマンド・リスク判定・各エージェント連携の
+> リファレンス。
+
+前提: agent-key plugin を組み込んだ Tauri アプリ(付属の tray app
+`agent-key/apps/tray` で可)が起動しており、localhost API
+(デフォルト `127.0.0.1:43117`) が有効なこと。
 CLI `agent-key` (`cargo install --path agent-key/crates/agent-key-cli` または
 `cargo build --release` した `agent-key.exe`) が PATH にあること。
 
@@ -29,12 +34,39 @@ agent-key simulate single            # mock接続時の疑似クリック
 仕組み:
 
 - `PreToolUse` (matcher なし = 全ツール): `agent-key status tool_running`
-- `PreToolUse` (matcher `Bash`): `agent-key hook pre-tool --risk high`
+- `PreToolUse` (matcher `Bash`): `agent-key hook pre-tool --risk high --json`
   - stdin の hook JSON から `tool_name` / `tool_input` を読み取り、承認要求を発行
-  - 拒否/タイムアウト時は **exit 2** で返り、Claude Code がツール実行をブロックする
-    (stderr がモデルへのフィードバックになる)
+  - `--json`: Claude Code の hookOutput JSON を stdout に出して **常に exit 0**:
+
+    ```json
+    {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+      "permissionDecision": "allow" | "deny",
+      "permissionDecisionReason": "Approved by physical key (JEWEL1k)."}}
+    ```
+
+    承認= `allow`、拒否/緊急停止/タイムアウト= `deny`
+  - `--json` なし(レガシー): 拒否/タイムアウト時は **exit 2** で返り、
+    Claude Code がツール実行をブロックする(stderr がモデルへのフィードバック)
+  - API に到達できない時はどちらのモードでも exit 1(非ブロッキングエラー)。
+    tray app が落ちていてもエージェントがロックされない
 - `Stop`: `agent-key hook stop` (= `status done`)
 - `Notification`: `agent-key status needs_approval` (Claude Code 自身の確認待ち)
+
+### auto-accept(権限バイパス)モードとの関係
+
+Claude Code を auto-accept モードで使うと、ツールは Claude 自身が承認して即実行され、
+物理ボタンによる承認ゲートは本質的に意味を持たない(誰もボタンを押さない)。この状態で
+`hook pre-tool` を回すと承認要求が解決されないまま溜まる。
+
+そのため plugin は、エージェントが次のステータス(`thinking` / `tool_running` /
+`done` など needs_approval 以外)を送ってきた時点で、**未解決のまま残っている承認要求を
+supersede(Cancelled として破棄)する**。これにより赤点滅が残り続けず、LED は実際の
+ステータス色に戻る。破棄は必ず Cancelled であって Approved にはしないので、承認の安全性は
+保たれる(通常のブロッキング承認フローでは、承認待ちの間エージェントは停止していて
+ステータスを送らないため、正規のゲートが誤って打ち切られることはない)。
+
+auto-accept を常用するなら、そもそも Bash の `PreToolUse` 承認ゲートを外して
+ステータス表示のフックだけ残す運用も可。
 
 リスクの目安:
 
@@ -47,10 +79,20 @@ agent-key simulate single            # mock接続時の疑似クリック
 
 ## Codex
 
-`examples/codex-hooks.json` を参照。Codex の `~/.codex/config.toml` の `notify` /
-exec ラッパー等、フック機構の呼び出し先として `agent-key` CLI を指定する
-(Codex 側のフック仕様はバージョンで変わるため、JSON はコマンド定義の
-リファレンスとして使うこと)。
+Codex に PreToolUse 相当のブロッキングフックはないが、`notify` がある。
+`~/.codex/config.toml` に:
+
+```toml
+notify = ["agent-key", "hook", "codex-notify"]
+```
+
+Codex は通知のたびに JSON を1引数で渡してくる。`agent-key hook codex-notify` は
+`{"type":"agent-turn-complete", ...}` を `status done`(緑)にマップし、
+未知の type は無視する(exit 0)。
+
+セッション全体の演出やリスクの高いコマンドのゲートは
+`examples/codex-hooks.json` の `wrapper_commands` / `manual_approval` を参照
+(シェルラッパーで `agent-key status ...` / `agent-key approval ...` を挟む)。
 
 ## シェルからの直接利用
 

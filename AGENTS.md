@@ -15,10 +15,14 @@ JEWEL1k は CH552E 採用の1キーキーボード。このリポジトリには
 ```sh
 cd agent-key
 cargo test          # Rust workspace 全体 (core / cli / plugin統合テスト)
+cargo test --workspace --all-features   # hid (hidapi) も含める
 pnpm install && pnpm build   # guest-js TypeScript bindings -> dist-js/
+cd apps/tray && cargo build  # tray app (独立workspace。wryをリンクするため分離)
 ```
 
-- Rust は MSVC toolchain。`serialport` は core の feature `serial`(plugin では default on)
+- Rust は MSVC toolchain。`serialport` は core の feature `serial`(plugin では default on)、
+  `hidapi` は feature `hid`(default off。tray app / CI の all-features で有効)
+- CI: `.github/workflows/ci.yml`(cargo test / clippy `-D warnings` / pnpm build)
 - ファームウェア (`src/**/*.ino`) はここではビルドできない。Arduino IDE + CH55xduino が必要。
   変更したらコンパイル確認は人間に依頼すること
 
@@ -27,27 +31,44 @@ pnpm install && pnpm build   # guest-js TypeScript bindings -> dist-js/
 ```
 agent-key/
 ├── crates/agent-key-core/        # Tauri非依存のコア。types / protocol / led_policy /
-│                                 #   risk_policy / approval_queue / transport(Mock,Serial,HID trait)
+│                                 #   risk_policy / approval_queue /
+│                                 #   transport(Mock / Serial[serial] / HidRaw[hid])
 ├── crates/agent-key-cli/         # `agent-key` CLI。localhost APIクライアント (std::netのみ)
-└── plugins/jewel1k-plugin-agent-key/
-    ├── src/manager.rs            # 状態管理の中心。イベントemit / LED送出 / poll tick
-    ├── src/server.rs             # localhost HTTP API (127.0.0.1:43117)
-    ├── src/commands.rs           # Tauri commands (managerの薄いラッパ)
-    ├── permissions/              # default.toml + sets.toml (allow-*)
-    └── guest-js/index.ts         # TypeScript bindings
-src/agentkey/agentkey.ino         # agent-key用ファームウェア (1key.inoベース, CDC)
-docs/{DESIGN,PROTOCOL,TAURI_PLUGIN,HOOKS}.md
+│   └── tests/e2e.rs              # CLI実バイナリ vs モックAPIサーバの E2E テスト
+├── plugins/jewel1k-plugin-agent-key/  # ※Cargoパッケージ名は tauri-plugin-agent-key (下記注意)
+│   ├── src/manager.rs            # 状態管理の中心。複数デバイス links / イベントemit / poll tick
+│   ├── src/server.rs             # localhost HTTP API (127.0.0.1:43117)
+│   ├── src/commands.rs           # Tauri commands (managerの薄いラッパ)
+│   ├── permissions/              # default.toml + sets.toml (allow-*)
+│   └── guest-js/index.ts         # TypeScript bindings
+└── apps/tray/                    # Phase 4 tray常駐アプリ (独立workspace)
+src/agentkey/agentkey.ino         # agent-key用ファームウェア (CDC版)
+src/agentkey_hid/agentkey_hid.ino # 複合デバイス版 (キーボード+raw HID。via と同居)
+docs/{DESIGN,PROTOCOL,TAURI_PLUGIN,HOOKS,HOOKS_SETUP}.md
 ```
 
 ## 変更時の同期ポイント(壊しやすい所)
 
 以下は**手動で同期している**。片方だけ変えるとプロトコル不整合になる:
 
-- 色テーブル: `led_policy.rs::color_for` ⇔ `agentkey.ino::stateColor` ⇔ docs/PROTOCOL.md
-- state/risk/pattern/event のワイヤバイト値: `types.rs`(`#[repr(u8)]`) ⇔ `agentkey.ino` の #define ⇔ docs/PROTOCOL.md
+- 色テーブル: `led_policy.rs::color_for` ⇔ `agentkey.ino::stateColor` ⇔
+  `agentkey_hid.ino::stateColor` ⇔ docs/PROTOCOL.md
+- state/risk/pattern/event のワイヤバイト値: `types.rs`(`#[repr(u8)]`) ⇔ 両 .ino の
+  #define ⇔ docs/PROTOCOL.md
 - Tauri commands 追加時: `build.rs` の COMMANDS / `commands.rs` / `lib.rs` の generate_handler /
   `permissions/sets.toml` / `guest-js/index.ts` / docs/TAURI_PLUGIN.md の5箇所
-- ジェスチャ閾値 (350ms/800ms/3s): `agentkey.ino` ⇔ docs/PROTOCOL.md ⇔ `types.rs` のdocコメント
+- ジェスチャ閾値 (350ms/800ms/3s): 両 .ino ⇔ docs/PROTOCOL.md ⇔ `types.rs` のdocコメント
+- USB VID/PID `0x4249:0x4287`: `keyboardConfig.h`(1key / agentkey_hid) ⇔
+  `transport/hid.rs` の定数 ⇔ tray app の自動検出ヒューリスティック。
+  ※ CDC 版ファーム `src/agentkey/agentkey.ino` は "Default CDC" 設定で VID/PID を
+  上書きしないため、CH55xduino 既定の `1209:c550` として列挙される。tray の
+  `looks_like_jewel` はこの CDC 既定 ID も併せてマッチさせている(でないと
+  「USB シリアル デバイス」名で自動接続に拾われない)
+- **plugin の Cargo パッケージ名は `tauri-plugin-agent-key` から変えない。**
+  tauri は permission 名前空間を CARGO_PKG_NAME から導出(`tauri-plugin-` のみ strip)
+  するため、これを変えると capability の `agent-key:*` と runtime 名 "agent-key" が
+  不一致になり webview からの invoke が全部 ACL で落ちる(Rust lib 名は
+  `jewel1k_plugin_agent_key` のまま)
 
 ## 安全設計の不変条件(絶対に破らない)
 

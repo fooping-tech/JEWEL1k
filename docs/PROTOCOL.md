@@ -1,7 +1,14 @@
 # agent-key ワイヤプロトコル (PROTOCOL.md)
 
-JEWEL1k (CH552E) とホスト間のバイナリプロトコル。USB CDC シリアル 115200bps 8N1。
-実装: `agent-key/crates/agent-key-core/src/protocol.rs` / `src/agentkey/agentkey.ino`
+JEWEL1k (CH552E) とホスト間のバイナリプロトコル。トランスポートは2種類あり、
+どちらも同じ A1/B1 フレームを運ぶ:
+
+- **USB CDC シリアル** 115200bps 8N1 (`src/agentkey/agentkey.ino`)
+- **raw HID** (usage page 0xFF60, usage 0x61, 32byteレポート) —
+  キーボード複合デバイス版 (`src/agentkey_hid/agentkey_hid.ino`)
+
+実装: `agent-key/crates/agent-key-core/src/protocol.rs` /
+`transport/serial.rs` / `transport/hid.rs`
 
 ## PC -> JEWEL1k: LEDコマンド (6 bytes)
 
@@ -92,3 +99,20 @@ risk は現状 LED 表現に直接は使われない(ホスト側 led_policy が
 - 115200 bps / 8N1 (CDC のため実際は仮想)
 - ホスト側は 10ms タイムアウトのノンブロッキング読み出し + 逐次 `Decoder`
 - ホットプラグ: I/O エラー時に transport を切断し `device-disconnected` を emit
+
+## raw HID トランスポート (複合デバイスファームウェア)
+
+`src/agentkey_hid/agentkey_hid.ino` は キーボードHID + vendor HID
+(QMK raw HID 互換: usage page `0xFF60`, usage `0x61`, 32byte固定レポート) の
+複合デバイス。USB VID/PID は `0x4249:0x4287` (keyboardConfig.h)。
+
+- **PC -> JEWEL1k**: レポート先頭6バイトに上記 A1 フレーム、残りは 0 埋め。
+  via コマンドと同じ OUT レポートに載る(コマンドID `0xA1` は via の
+  0x01..0x12 / 0xFF と衝突しない)。checksum 不正は無応答で破棄
+- **JEWEL1k -> PC**: レポート先頭3バイトに B1 フレーム、残りは 0 埋め。
+  ホスト側 (`HidRawTransport`) は先頭が `0xB1` でないレポート
+  (= via/QMK トラフィック) を無視する
+- via クライアント (usevia.app) と同時使用可能だが、ボタンイベントは
+  非同期 IN レポートとして混在する点に注意
+- ボタンは via キーマップのキー入力としても動作する(デフォルトは
+  KEY_NONE 無入力。usevia.app で任意に割り当て可能)
