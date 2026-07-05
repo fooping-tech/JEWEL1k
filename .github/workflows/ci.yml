@@ -32,7 +32,14 @@ jobs:
 
       - name: Install Linux native build deps
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libudev-dev libglib2.0-dev pkg-config
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libatk1.0-dev \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libudev-dev \
+            pkg-config
 
       - uses: dtolnay/rust-toolchain@stable
         with:
