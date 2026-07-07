@@ -88,8 +88,35 @@ auto-accept を常用するなら、そもそも Bash の `PreToolUse` 承認ゲ
 
 ## Codex
 
-Codex に PreToolUse 相当のブロッキングフックはないが、`notify` がある。
-`~/.codex/config.toml` に:
+Codex は lifecycle hooks を読める。リポジトリ内の `.codex/hooks.json` に置くと、
+Codex がこのプロジェクトを trusted として扱う場合に読み込まれる。
+`.codex/hooks.json` は個人の trust 状態に関わるため git 管理せず、サンプルからコピーする。
+
+```sh
+mkdir -p .codex
+cp examples/codex-hooks.json .codex/hooks.json
+```
+
+このリポジトリの推奨設定:
+
+| Event | command | 効果 |
+|-------|---------|------|
+| `UserPromptSubmit` | `agent-key status thinking --risk none` | 思考開始で青 |
+| `PermissionRequest` | `agent-key status needs_approval --risk high` | Codex の承認待ちで赤 |
+| `PreToolUse` | `agent-key status tool_running --risk none` | ツール実行中に黄 |
+| `PostToolUse` | `agent-key status thinking --risk none` | ツール完了後に青へ戻す |
+| `Stop` | `agent-key status done --risk none` | ターン完了で緑 |
+
+初回または hook 変更後は Codex CLI で `/hooks` を開き、該当 hook を trust する。
+hook が動かない場合は、`agent-key` が hook 実行環境の PATH に入っていない可能性がある。
+その場合は `.codex/hooks.json` の `command` を
+`/Users/.../.local/bin/agent-key status ...` のような絶対パスに置き換える。
+
+`PermissionRequest` は Codex 自身の承認 UI と同期して赤にするだけで、物理キー承認の
+結果を Codex へ返すものではない。物理キーで別途ゲートしたい処理は、シェルやスクリプトで
+`agent-key approval ...` を明示的に挟む。
+
+古い Codex や通知だけで使う場合は、`~/.codex/config.toml` に:
 
 ```toml
 notify = ["agent-key", "hook", "codex-notify"]
@@ -101,14 +128,6 @@ notify = ["agent-key", "hook", "codex-notify"]
 Codex は通知のたびに JSON を1引数で渡してくる。`agent-key hook codex-notify` は
 `{"type":"agent-turn-complete", ...}` を `status done`(緑)にマップし、
 未知の type は無視する(exit 0)。
-
-セッション全体の演出やリスクの高いコマンドのゲートは
-`examples/codex-hooks.json` の `wrapper_commands` / `manual_approval` を参照
-(シェルラッパーで `agent-key status ...` / `agent-key approval ...` を挟む)。
-
-つまり標準の `notify` だけでは、Codex の作業開始時やツール実行時には LED は変わらず、
-ターン完了時に緑へ変わるだけ。青/黄/赤も出したい場合は、`agent-key status thinking`
-などをシェルラッパーやスクリプトから明示的に呼ぶ。
 
 ## シェルからの直接利用
 
@@ -139,4 +158,3 @@ curl -s localhost:43117/state
 curl -s -X POST localhost:43117/status -d '{"state":"thinking"}'
 curl -s -X POST "localhost:43117/approval?wait=false" -d '{"title":"x","risk":"medium"}'
 ```
-
