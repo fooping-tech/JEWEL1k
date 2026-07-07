@@ -38,11 +38,15 @@ COMMANDS:
   cancel <id>                   cancel a pending approval
   simulate <single|double|long|very_long>
                                 inject a fake button gesture (mock only)
-  hook pre-tool [--risk R] [--json]
+  hook pre-tool [--risk R] [--json] [--always-gate]
                                 Claude Code PreToolUse hook: reads the hook
                                 JSON on stdin, asks for approval (exit 2 blocks;
                                 with --json prints a hookOutput permissionDecision
-                                and always exits 0)
+                                and always exits 0). When the session runs in an
+                                auto-accept mode (permission_mode auto|dontAsk|
+                                bypassPermissions) the physical gate is skipped
+                                (allow) unless --always-gate is set; critical
+                                risk is still gated (= auto-denied) in any mode
   hook stop                     Claude Code Stop hook: sets status to done
   hook codex-notify [JSON]      Codex notify handler: reads the notification
                                 JSON (argument or stdin), maps it to a status
@@ -51,9 +55,10 @@ ENVIRONMENT:
   AGENT_KEY_PORT   API port (default 43117)
   AGENT_KEY_TOKEN  shared token, if the plugin requires one
 
-RISK LEVELS:
-  none|low|medium: 1 click approves   high: 2 clicks within 5 s
-  critical: always denied by policy   long press: deny   very long: emergency stop
+BUTTON GESTURES (while an approval is pending):
+  double press: approve    long press: deny    very long press: emergency stop
+  single press: never approves (stays a plain HID keystroke in normal state)
+  critical risk: always denied by policy, the button cannot approve it
 "#;
 
 fn main() {
@@ -239,6 +244,7 @@ fn hook(rest: &[String], approval_client: &http::Client, quick: &http::Client) -
                 .and_then(|t| t.parse().ok())
                 .unwrap_or(120_000);
             let json_output = take_bool(&mut rest, "--json");
+            let always_gate = take_bool(&mut rest, "--always-gate");
 
             // Claude Code pipes the hook payload on stdin.
             let mut input = String::new();
@@ -255,6 +261,40 @@ fn hook(rest: &[String], approval_client: &http::Client, quick: &http::Client) -
                     s.chars().take(200).collect::<String>()
                 })
                 .unwrap_or_default();
+
+            // Auto-accept modes: the user already told the agent to act
+            // without asking, so skip the physical gate (LED shows activity
+            // instead of blocking red). critical stays gated even here so
+            // the queue's default-deny still applies; --always-gate forces
+            // the key in every mode.
+            let permission_mode = payload
+                .get("permission_mode")
+                .and_then(Value::as_str)
+                .unwrap_or("default");
+            let auto_mode =
+                matches!(permission_mode, "auto" | "dontAsk" | "bypassPermissions");
+            if auto_mode && !always_gate && risk != "critical" {
+                let _ = quick.request(
+                    "POST",
+                    "/status",
+                    Some(&json!({ "state": "tool_running", "risk": risk })),
+                );
+                if json_output {
+                    println!(
+                        "{}",
+                        json!({
+                            "hookSpecificOutput": {
+                                "hookEventName": "PreToolUse",
+                                "permissionDecision": "allow",
+                                "permissionDecisionReason": format!(
+                                    "Auto mode ({permission_mode}): physical key (JEWEL1k) approval skipped."
+                                ),
+                            }
+                        })
+                    );
+                }
+                return 0;
+            }
 
             let _ = quick.request(
                 "POST",

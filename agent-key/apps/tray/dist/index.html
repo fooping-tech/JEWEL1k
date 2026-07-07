@@ -45,7 +45,7 @@
     <h2>承認要求</h2>
     <div class="title" id="approval-title"></div>
     <div class="row"><span class="k">リスク</span><span id="approval-risk"></span></div>
-    <div class="hint">物理キー: 単押し=承認 (highは2回) / 長押し=拒否 / 3秒押し=緊急停止</div>
+    <div class="hint">物理キー: ダブル押し=承認 / 長押し=拒否 / 3秒押し=緊急停止 (単押しは通常のキー入力)</div>
     <div style="margin-top:8px"><button id="cancel-approval">要求を取り消す</button></div>
   </section>
 
@@ -150,7 +150,6 @@
     listen('agent-key://state-changed', (e) => render(e.payload));
     listen('agent-key://button', (e) => logLine(`button: ${e.payload.gesture}`));
     listen('agent-key://approval-requested', (e) => { logLine(`approval requested: ${e.payload.title}`); refreshState(); });
-    listen('agent-key://approval-progress', (e) => logLine(`approval progress: ${e.payload.clicks}/${e.payload.required}`));
     listen('agent-key://approval-resolved', (e) => { logLine(`approval ${e.payload.decision}`); refreshState(); });
     listen('agent-key://device-connected', (e) => { logLine(`connected: ${e.payload.name}`); refreshHealth(); refreshState(); });
     listen('agent-key://device-disconnected', () => { logLine('disconnected'); refreshHealth(); refreshState(); });

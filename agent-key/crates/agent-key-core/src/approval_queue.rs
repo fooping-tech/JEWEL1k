@@ -2,6 +2,16 @@
 //! approval decisions. Frontends, hooks and LLMs can submit or cancel
 //! requests but can never resolve one as approved.
 //!
+//! Gesture rules (identical for every approvable risk level):
+//!
+//! - `Double`   : approve the active request
+//! - `Long`     : deny the active request
+//! - `VeryLong` : emergency stop (deny everything, even with an empty queue)
+//! - `Single` / `Down` / `Up` : never resolve a request (a single press stays
+//!   available as a plain HID keystroke while nothing is pending)
+//!
+//! Critical risk is auto-denied on submit; no gesture can approve it.
+//!
 //! Time is passed in explicitly (milliseconds from any monotonic origin) so
 //! every rule is deterministic and unit-testable.
 
@@ -15,12 +25,6 @@ use std::collections::VecDeque;
 pub enum QueueEvent {
     /// A request left the queue with a final decision.
     Resolved(ApprovalResolution),
-    /// A click was registered but more are required (high risk).
-    Progress {
-        id: String,
-        clicks: u8,
-        required: u8,
-    },
     /// A very long press triggered an emergency stop (all requests denied).
     EmergencyStop,
 }
@@ -38,8 +42,6 @@ pub enum SubmitOutcome {
 struct Pending {
     request: ApprovalRequest,
     created_ms: u64,
-    clicks: u8,
-    first_click_ms: Option<u64>,
 }
 
 #[derive(Debug, Default)]
@@ -85,8 +87,6 @@ impl ApprovalQueue {
         self.pending.push_back(Pending {
             request,
             created_ms: now_ms,
-            clicks: 0,
-            first_click_ms: None,
         });
         SubmitOutcome::Pending { id }
     }
@@ -118,8 +118,9 @@ impl ApprovalQueue {
 
     /// Feed a button gesture. Returns zero or more queue events; gestures
     /// with no pending request return an empty vec (callers still forward
-    /// the raw button event to listeners).
-    pub fn handle_button(&mut self, gesture: ButtonGesture, now_ms: u64) -> Vec<QueueEvent> {
+    /// the raw button event to listeners). `Single`, `Down` and `Up` never
+    /// resolve a request.
+    pub fn handle_button(&mut self, gesture: ButtonGesture, _now_ms: u64) -> Vec<QueueEvent> {
         if gesture == ButtonGesture::VeryLong {
             // Emergency stop applies even with an empty queue.
             let mut events: Vec<QueueEvent> = self
@@ -137,39 +138,19 @@ impl ApprovalQueue {
             return events;
         }
 
-        let Some(front) = self.pending.front_mut() else {
+        let Some(front) = self.pending.front() else {
             return Vec::new();
         };
         let rule = rule_for(front.request.risk);
 
         match gesture {
-            ButtonGesture::Single | ButtonGesture::Double => {
-                // A fast double press counts as two clicks.
-                let add = if gesture == ButtonGesture::Double { 2 } else { 1 };
-                if let Some(first) = front.first_click_ms {
-                    if now_ms.saturating_sub(first) > rule.click_window_ms {
-                        front.clicks = 0;
-                        front.first_click_ms = None;
-                    }
-                }
-                if front.first_click_ms.is_none() {
-                    front.first_click_ms = Some(now_ms);
-                }
-                front.clicks = front.clicks.saturating_add(add);
-                if front.clicks >= rule.clicks_to_approve {
-                    let p = self.pending.pop_front().expect("front exists");
-                    vec![QueueEvent::Resolved(ApprovalResolution {
-                        id: p.request.id,
-                        decision: Decision::Approved,
-                        reason: None,
-                    })]
-                } else {
-                    vec![QueueEvent::Progress {
-                        id: front.request.id.clone(),
-                        clicks: front.clicks,
-                        required: rule.clicks_to_approve,
-                    }]
-                }
+            ButtonGesture::Double => {
+                let p = self.pending.pop_front().expect("front exists");
+                vec![QueueEvent::Resolved(ApprovalResolution {
+                    id: p.request.id,
+                    decision: Decision::Approved,
+                    reason: Some("approved by double press".into()),
+                })]
             }
             ButtonGesture::Long if rule.long_press_denies => {
                 let p = self.pending.pop_front().expect("front exists");
@@ -179,12 +160,13 @@ impl ApprovalQueue {
                     reason: Some("denied by long press".into()),
                 })]
             }
+            // Single / Down / Up: informational only, never a decision.
             _ => Vec::new(),
         }
     }
 
-    /// Advance time: expire requests whose timeout elapsed and reset stale
-    /// click counts. Call this periodically (e.g. every poll tick).
+    /// Advance time: expire requests whose timeout elapsed. Call this
+    /// periodically (e.g. every poll tick).
     pub fn tick(&mut self, now_ms: u64) -> Vec<QueueEvent> {
         let mut events = Vec::new();
         // Expire timeouts (any position in the queue).
@@ -203,16 +185,6 @@ impl ApprovalQueue {
                 }));
             } else {
                 i += 1;
-            }
-        }
-        // Reset expired click windows on the active request.
-        if let Some(front) = self.pending.front_mut() {
-            let rule = rule_for(front.request.risk);
-            if let Some(first) = front.first_click_ms {
-                if now_ms.saturating_sub(first) > rule.click_window_ms {
-                    front.clicks = 0;
-                    front.first_click_ms = None;
-                }
             }
         }
         events
@@ -243,13 +215,22 @@ mod tests {
     }
 
     #[test]
-    fn medium_risk_is_approved_by_single_click() {
+    fn medium_risk_is_not_approved_by_single_click() {
+        let mut q = ApprovalQueue::new();
+        q.submit(request("rm build dir", RiskLevel::Medium), 0);
+        let events = q.handle_button(ButtonGesture::Single, 100);
+        assert!(events.is_empty(), "single must not resolve anything");
+        assert_eq!(q.len(), 1, "request must stay pending");
+    }
+
+    #[test]
+    fn medium_risk_is_approved_by_double_press() {
         let mut q = ApprovalQueue::new();
         let SubmitOutcome::Pending { id } = q.submit(request("rm build dir", RiskLevel::Medium), 0)
         else {
             panic!("medium must queue");
         };
-        let events = q.handle_button(ButtonGesture::Single, 100);
+        let events = q.handle_button(ButtonGesture::Double, 100);
         let r = resolved(&events).expect("resolved");
         assert_eq!(r.id, id);
         assert_eq!(r.decision, Decision::Approved);
@@ -265,42 +246,31 @@ mod tests {
     }
 
     #[test]
-    fn high_risk_needs_two_clicks_within_5s() {
+    fn high_risk_is_not_approved_by_single_clicks() {
         let mut q = ApprovalQueue::new();
         q.submit(request("git push --force", RiskLevel::High), 0);
-
-        let events = q.handle_button(ButtonGesture::Single, 1_000);
-        assert!(matches!(
-            events[0],
-            QueueEvent::Progress {
-                clicks: 1,
-                required: 2,
-                ..
-            }
-        ));
-
-        let events = q.handle_button(ButtonGesture::Single, 3_000); // within 5 s
-        assert_eq!(resolved(&events).unwrap().decision, Decision::Approved);
+        // Neither one nor two single presses approve.
+        assert!(q.handle_button(ButtonGesture::Single, 1_000).is_empty());
+        assert!(q.handle_button(ButtonGesture::Single, 1_500).is_empty());
+        assert_eq!(q.len(), 1, "request must stay pending");
     }
 
     #[test]
-    fn high_risk_click_window_expires() {
+    fn high_risk_is_approved_by_double_press() {
         let mut q = ApprovalQueue::new();
-        q.submit(request("deploy prod", RiskLevel::High), 0);
-        q.handle_button(ButtonGesture::Single, 1_000);
-        // second click 6 s later -> window expired, counts as first click again
-        let events = q.handle_button(ButtonGesture::Single, 7_000);
-        assert!(matches!(
-            events[0],
-            QueueEvent::Progress {
-                clicks: 1,
-                required: 2,
-                ..
-            }
-        ));
-        // fast double press then approves
-        let events = q.handle_button(ButtonGesture::Double, 8_000);
+        q.submit(request("git push --force", RiskLevel::High), 0);
+        let events = q.handle_button(ButtonGesture::Double, 1_000);
         assert_eq!(resolved(&events).unwrap().decision, Decision::Approved);
+        assert!(q.is_empty());
+    }
+
+    #[test]
+    fn down_and_up_never_resolve() {
+        let mut q = ApprovalQueue::new();
+        q.submit(request("x", RiskLevel::Medium), 0);
+        assert!(q.handle_button(ButtonGesture::Down, 10).is_empty());
+        assert!(q.handle_button(ButtonGesture::Up, 20).is_empty());
+        assert_eq!(q.len(), 1);
     }
 
     #[test]
@@ -313,7 +283,7 @@ mod tests {
         assert_eq!(r.decision, Decision::Denied);
         assert!(q.is_empty());
         // and the button can never approve it
-        assert!(q.handle_button(ButtonGesture::Single, 10).is_empty());
+        assert!(q.handle_button(ButtonGesture::Double, 10).is_empty());
     }
 
     #[test]
@@ -387,7 +357,7 @@ mod tests {
         let SubmitOutcome::Pending { id: b } = q.submit(request("b", RiskLevel::Medium), 0) else {
             panic!()
         };
-        let events = q.handle_button(ButtonGesture::Single, 10);
+        let events = q.handle_button(ButtonGesture::Double, 10);
         assert_eq!(resolved(&events).unwrap().id, a);
         assert_eq!(q.current().unwrap().id, b);
     }

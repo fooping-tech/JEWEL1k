@@ -224,7 +224,7 @@ fn setup_notifications(app: &AppHandle<Wry>) {
             let title = req.get("title").and_then(Value::as_str).unwrap_or("action");
             let risk = req.get("risk").and_then(Value::as_str).unwrap_or("medium");
             let body = format!(
-                "{title}\nリスク: {risk} — キー単押し=承認 / 長押し=拒否 / ダブル=詳細"
+                "{title}\nリスク: {risk} — キーダブル押し=承認 / 長押し=拒否"
             );
             if let Err(e) = app_
                 .notification()
@@ -262,7 +262,9 @@ fn setup_notifications(app: &AppHandle<Wry>) {
         });
     }
     {
-        // Double-press while an approval is pending = "show details".
+        // Double-press = show the status window ("details"). While an
+        // approval is pending the same double press approves it (core rule),
+        // so the window pops with the fresh resolution visible.
         let app_ = app.clone();
         app.listen_any("agent-key://button", move |event| {
             let payload: Value = serde_json::from_str(event.payload()).unwrap_or(Value::Null);

@@ -91,9 +91,11 @@ pub enum LedPattern {
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ButtonGesture {
-    /// Short single press: approve.
+    /// Short single press: plain HID keystroke in normal state; never
+    /// approves anything (informational for agent-key).
     Single = 1,
-    /// Fast double press: show details (or 2 approval clicks when pending).
+    /// Fast double press: approve the pending request (show details when
+    /// nothing is pending).
     Double = 2,
     /// Long press (>= 800 ms): deny.
     Long = 3,

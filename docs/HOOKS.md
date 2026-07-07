@@ -21,7 +21,7 @@ agent-key status tool_running        # 黄
 agent-key status done                # 緑
 agent-key approval "git push --force" --risk high --timeout 60000
 #   -> ボタンの決定までブロック。exit code: 0=承認 2=拒否 3=タイムアウト
-agent-key simulate single            # mock接続時の疑似クリック
+agent-key simulate double            # mock接続時の疑似ダブル押し(承認)
 ```
 
 環境変数: `AGENT_KEY_PORT`, `AGENT_KEY_TOKEN`
@@ -55,15 +55,24 @@ agent-key simulate single            # mock接続時の疑似クリック
 ### auto-accept(権限バイパス)モードとの関係
 
 Claude Code を auto-accept モードで使うと、ツールは Claude 自身が承認して即実行され、
-物理ボタンによる承認ゲートは本質的に意味を持たない(誰もボタンを押さない)。この状態で
-`hook pre-tool` を回すと承認要求が解決されないまま溜まる。
+物理ボタンによる承認ゲートは本質的に意味を持たない(誰もボタンを押さない)。
 
-そのため plugin は、エージェントが次のステータス(`thinking` / `tool_running` /
-`done` など needs_approval 以外)を送ってきた時点で、**未解決のまま残っている承認要求を
-supersede(Cancelled として破棄)する**。これにより赤点滅が残り続けず、LED は実際の
-ステータス色に戻る。破棄は必ず Cancelled であって Approved にはしないので、承認の安全性は
-保たれる(通常のブロッキング承認フローでは、承認待ちの間エージェントは停止していて
-ステータスを送らないため、正規のゲートが誤って打ち切られることはない)。
+そのため `hook pre-tool` は、hook JSON の `permission_mode` が
+**`auto` / `dontAsk` / `bypassPermissions` のときは承認要求を出さず、即 `allow` を返す**
+(LED は `needs_approval` の赤ではなく `tool_running` の黄を表示)。
+`default` / `plan` / `acceptEdits` では従来どおり物理キーでゲートする。
+
+- auto モードでも物理キーを必須にしたい場合は `--always-gate` を付ける
+- `--risk critical` は auto モードでもゲートされ、従来どおり自動拒否される
+  (auto モードで critical が素通りすることはない)
+
+さらに保険として plugin 側は、エージェントが次のステータス(`thinking` /
+`tool_running` / `done` など needs_approval 以外)を送ってきた時点で、**未解決のまま
+残っている承認要求を supersede(Cancelled として破棄)する**。これにより赤点滅が
+残り続けず、LED は実際のステータス色に戻る。破棄は必ず Cancelled であって Approved には
+しないので、承認の安全性は保たれる(通常のブロッキング承認フローでは、承認待ちの間
+エージェントは停止していてステータスを送らないため、正規のゲートが誤って打ち切られる
+ことはない)。
 
 auto-accept を常用するなら、そもそも Bash の `PreToolUse` 承認ゲートを外して
 ステータス表示のフックだけ残す運用も可。
@@ -73,8 +82,8 @@ auto-accept を常用するなら、そもそも Bash の `PreToolUse` 承認ゲ
 | 操作                         | risk     | 挙動 |
 |------------------------------|----------|------|
 | 読み取り・検索               | none/low | フック不要(光らせるだけ) |
-| ファイル編集                 | medium   | 単押しで承認 |
-| Bash / git push / デプロイ   | high     | 5秒以内に2クリック |
+| ファイル編集                 | medium   | ダブル押しで承認 |
+| Bash / git push / デプロイ   | high     | ダブル押しで承認 |
 | 破壊的操作 (rm -rf, force push to main) | critical | 常に自動拒否 |
 
 ## Codex

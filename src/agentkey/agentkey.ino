@@ -15,9 +15,9 @@
     JEWEL1k -> PC : B1 event checksum                         (3 bytes)
     checksum = 先行する全バイトの XOR
 
-  ボタンジェスチャ:
-    単押し(<800ms)                 -> 0x01 Single   (承認)
-    ダブル押し(350ms以内に2回)      -> 0x02 Double   (詳細表示 / 2クリック承認)
+  ボタンジェスチャ (意味づけはホスト側 ApprovalQueue が行う):
+    単押し(<800ms)                 -> 0x01 Single   (承認には使われない)
+    ダブル押し(350ms以内に2回)      -> 0x02 Double   (承認)
     長押し(>=800ms)                -> 0x03 Long     (拒否)
     超長押し(>=3000ms, 押下中に送信) -> 0x04 VeryLong (緊急停止)
     生イベント Down/Up             -> 0x05 / 0x06

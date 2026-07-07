@@ -19,7 +19,9 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 
 - [x] agent-key-core: types / protocol (A1/B1 + XOR checksum + 逐次Decoder)
 - [x] led_policy (state+risk → pattern/brightness/color)
-- [x] risk_policy (medium=1クリック, high=5秒以内2クリック, critical=自動拒否)
+- [x] risk_policy (none〜high=ダブル押しで承認, critical=自動拒否。
+  当初の「medium=1クリック / high=5秒以内2クリック」から、承認待ち中のHID誤入力
+  防止のため「承認はダブル押しのみ」に仕様変更済み)
 - [x] approval_queue (FIFO / タイムアウト / 長押し拒否 / 超長押し緊急停止)
 - [x] MockTransport (送信ログ + `inject_event` による疑似ボタン)
 - [x] Tauri plugin (commands / events / permissions / poll thread)
@@ -99,6 +101,9 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
   examples/claude-settings.json も更新)
 - [x] Codex 連携を実設定に更新 (`notify = ["agent-key", "hook", "codex-notify"]`。
   CLI に `hook codex-notify` を追加、agent-turn-complete → done)
+- [x] auto-accept モードで物理承認をスキップ (`hook pre-tool` が hook JSON の
+  `permission_mode` auto|dontAsk|bypassPermissions を検知して即 allow。
+  `--always-gate` で無効化可。critical は auto モードでもゲート=自動拒否)
 - [x] approval キューの複数デバイス対応 (manager が複数 links を保持。LED は
   全デバイスへブロードキャスト、ボタンはどのデバイスからでも同一キューに入る。
   `disconnect(id)` / `Health.devices` を追加)
@@ -117,8 +122,8 @@ agent-key プロジェクトの計画と進捗。設計の詳細は [docs/DESIGN
 | 1 | `setStatus({state:"thinking"})` が動作 | plugin統合テスト `set_status_thinking_reaches_mock_transport` |
 | 2 | MockTransport で LED 送信ログ出力 | 同上 + `mock_logs_sent_packets` |
 | 3 | MockTransport で button イベント疑似発火 | `mock_emits_ready_then_injected_events` / `/simulate` |
-| 4 | medium risk がクリックで承認 | `medium_risk_approved_by_simulated_click_over_http` |
-| 5 | high risk が2クリックで承認 | `high_risk_needs_two_clicks_over_http` |
+| 4 | medium risk がダブル押しで承認(単押しでは承認されない) | `medium_risk_approved_by_simulated_double_press_over_http` |
+| 5 | high risk がダブル押しで承認(単押しは何回でも無視) | `high_risk_ignores_single_clicks_and_approves_on_double_over_http` |
 | 6 | critical risk が拒否 | `critical_risk_is_denied_without_button` |
 | 7 | onButtonEvent でイベント受信 | guest-js `onButtonEvent` + `agent-key://button` emit |
 | 8 | CLI から localhost API 経由で approval 要求 | CLI `approval` コマンド + HTTP `/approval` 統合テスト |
