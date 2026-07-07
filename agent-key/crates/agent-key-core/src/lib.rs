@@ -6,7 +6,7 @@
 //! - [`types`]: shared data types (agent state, risk levels, approvals, events)
 //! - [`protocol`]: binary wire protocol (`A1 ...` host->device, `B1 ...` device->host)
 //! - [`led_policy`]: agent state -> LED pattern/color/brightness mapping
-//! - [`risk_policy`]: risk level -> approval rules (clicks required, auto-deny, ...)
+//! - [`risk_policy`]: risk level -> approval rules (auto-deny, long-press deny, ...)
 //! - [`approval_queue`]: the single source of truth for approval decisions
 //! - [`transport`]: `Transport` trait + `MockTransport` (+ `SerialTransport` with the
 //!   `serial` feature, `HidRawTransport` with the `hid` feature)

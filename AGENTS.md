@@ -75,7 +75,8 @@ docs/{DESIGN,PROTOCOL,TAURI_PLUGIN,HOOKS,HOOKS_SETUP}.md
 - **承認判定は `agent-key-core::ApprovalQueue` のみが行う。**
   「承認済みにする」Tauri command / HTTP エンドポイントを追加してはならない。
   frontend・CLI・LLM に許されるのは要求(submit)と取消(cancel)だけ
-- critical リスクのデフォルト拒否、high の2クリック要件を緩和しない
+- critical リスクのデフォルト拒否を緩和しない。承認は物理ボタンの
+  **ダブル押し(`ButtonGesture::Double`)のみ**で成立させる(単押しは承認に使わない)
 - `simulate_button` は開発用。permission set `allow-simulate` を default に含めない
 - localhost API は 127.0.0.1 バインドのみ。外部公開しない
 
@@ -99,5 +100,6 @@ plugin を組み込んだアプリ起動後(autoConnect: "mock"):
 ```sh
 agent-key status thinking                       # 送信ログが青breathingを示す
 agent-key approval "test" --risk medium &       # ブロッキング承認要求
-agent-key simulate single                       # 疑似クリック -> approved / exit 0
+agent-key simulate single                       # 単押し -> 承認されない
+agent-key simulate double                       # ダブル押し -> approved / exit 0
 ```

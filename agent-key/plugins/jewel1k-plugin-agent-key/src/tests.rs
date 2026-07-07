@@ -101,7 +101,7 @@ fn set_status_thinking_reaches_mock_transport() {
 }
 
 #[test]
-fn medium_risk_approved_by_simulated_click_over_http() {
+fn medium_risk_approved_by_simulated_double_press_over_http() {
     let app = build_app();
     let port = spawn_api(&app);
 
@@ -115,9 +115,17 @@ fn medium_risk_approved_by_simulated_click_over_http() {
         )
     });
 
-    // ...MVP #3/#4: a simulated single click approves medium risk.
+    // ...MVP #3/#4: a single click never approves; a double press does.
     std::thread::sleep(Duration::from_millis(300));
     let (status, _) = http(port, "POST", "/simulate", &json!({ "gesture": "single" }));
+    assert_eq!(status, 200);
+    std::thread::sleep(Duration::from_millis(200));
+    let (_, state) = http(port, "GET", "/state", &Value::Null);
+    assert_eq!(
+        state["state"], "needs_approval",
+        "still pending after a single click"
+    );
+    let (status, _) = http(port, "POST", "/simulate", &json!({ "gesture": "double" }));
     assert_eq!(status, 200);
 
     let (status, body) = handle.join().unwrap();
@@ -126,7 +134,7 @@ fn medium_risk_approved_by_simulated_click_over_http() {
 }
 
 #[test]
-fn high_risk_needs_two_clicks_over_http() {
+fn high_risk_ignores_single_clicks_and_approves_on_double_over_http() {
     let app = build_app();
     let port = spawn_api(&app);
 
@@ -140,13 +148,17 @@ fn high_risk_needs_two_clicks_over_http() {
     });
 
     std::thread::sleep(Duration::from_millis(300));
-    // MVP #5: first click is not enough...
+    // MVP #5: single clicks never approve, no matter how many...
+    http(port, "POST", "/simulate", &json!({ "gesture": "single" }));
     http(port, "POST", "/simulate", &json!({ "gesture": "single" }));
     std::thread::sleep(Duration::from_millis(200));
     let (_, state) = http(port, "GET", "/state", &Value::Null);
-    assert_eq!(state["state"], "needs_approval", "still pending after 1 click");
-    // ...the second click approves.
-    http(port, "POST", "/simulate", &json!({ "gesture": "single" }));
+    assert_eq!(
+        state["state"], "needs_approval",
+        "still pending after single clicks"
+    );
+    // ...only a double press approves.
+    http(port, "POST", "/simulate", &json!({ "gesture": "double" }));
 
     let (status, body) = handle.join().unwrap();
     assert_eq!(status, 200);
@@ -274,7 +286,7 @@ fn multiple_devices_share_led_broadcast_and_approval_queue() {
         )
     });
     std::thread::sleep(Duration::from_millis(300));
-    http(port, "POST", "/simulate", &json!({ "gesture": "single" }));
+    http(port, "POST", "/simulate", &json!({ "gesture": "double" }));
     let (status, body) = handle.join().unwrap();
     assert_eq!(status, 200);
     assert_eq!(body["decision"], "approved");

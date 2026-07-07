@@ -121,7 +121,6 @@ const un3 = await onApprovalChanged((c) => console.log('approval:', c.kind))
 | `agent-key://button`               | `{ gesture, timestamp_ms }` |
 | `agent-key://state-changed`        | `CurrentState` |
 | `agent-key://approval-requested`   | `ApprovalRequest` |
-| `agent-key://approval-progress`    | `{ id, clicks, required }` (high risk の1クリック目など) |
 | `agent-key://approval-resolved`    | `{ id, decision, reason? }` |
 | `agent-key://device-connected`     | `DeviceInfo` |
 | `agent-key://device-disconnected`  | `{ device?: DeviceInfo }` |
@@ -156,7 +155,7 @@ agent_key.0.set_status(agent_key_core::StatusUpdate {
 ## 8. 開発フロー
 
 1. `autoConnect: "mock"` のままアプリを起動(実機不要)
-2. `agent-key simulate single` などでボタンを疑似発火
+2. `agent-key simulate double` などでボタンを疑似発火(承認はダブル押し)
 3. 実機を繋いだら `agent-key connect serial COM5`(CDC版ファーム)または
    `agent-key connect hid`(複合デバイス版ファーム。`listDevices()` から選択も可)
 4. ファームウェア書き込みは [FIRMWARE_FLASHING.md](FIRMWARE_FLASHING.md) を参照

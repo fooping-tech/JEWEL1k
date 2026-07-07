@@ -24,7 +24,6 @@ pub type EmitFn = Box<dyn Fn(&str, serde_json::Value) + Send + Sync>;
 pub const EVT_BUTTON: &str = "agent-key://button";
 pub const EVT_STATE_CHANGED: &str = "agent-key://state-changed";
 pub const EVT_APPROVAL_REQUESTED: &str = "agent-key://approval-requested";
-pub const EVT_APPROVAL_PROGRESS: &str = "agent-key://approval-progress";
 pub const EVT_APPROVAL_RESOLVED: &str = "agent-key://approval-resolved";
 pub const EVT_DEVICE_CONNECTED: &str = "agent-key://device-connected";
 pub const EVT_DEVICE_DISCONNECTED: &str = "agent-key://device-disconnected";
@@ -547,16 +546,6 @@ impl ManagerCore {
                 QueueEvent::Resolved(res) => {
                     self.record_resolution(res);
                     queue_changed = true;
-                }
-                QueueEvent::Progress {
-                    id,
-                    clicks,
-                    required,
-                } => {
-                    self.emit(
-                        EVT_APPROVAL_PROGRESS,
-                        serde_json::json!({ "id": id, "clicks": clicks, "required": required }),
-                    );
                 }
                 QueueEvent::EmergencyStop => {
                     self.emit(

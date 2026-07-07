@@ -13,12 +13,16 @@
   送るため、via クライアントの使用中はレポートが混在しうる点に注意。
 
   ボタン:
-    - via キーマップ通りのキー入力 (Down/Up で press_qmk_key)。誤入力を避ける
-      ため、デフォルトキーマップは KEY_NONE (何も入力しない) にしてある。
+    - 通常時 (curState != ST_APPROVAL): via キーマップ通りのキー入力
+      (Down/Up で press_qmk_key、単押しは即時にHIDキーとして有効)。
+      誤入力を避けるため、デフォルトキーマップは KEY_NONE (何も入力しない)。
       キーとして使いたい場合は usevia.app で任意のキーに割り当てる
-    - 同時に agent-key ジェスチャを分類して B1 イベント送信:
-        単押し(<800ms)                 -> 0x01 Single   (承認)
-        ダブル押し(350ms以内に2回)      -> 0x02 Double   (詳細表示 / 2クリック承認)
+    - 承認待ち中 (curState == ST_APPROVAL): HIDキー入力を抑止する
+      (押下時に key down を送らない。承認クリックがホストへ文字入力として
+      漏れないようにするため)。B1 イベント送信は通常時と同様に行う
+    - agent-key ジェスチャを分類して B1 イベント送信 (状態によらず常に):
+        単押し(<800ms)                 -> 0x01 Single   (承認には使われない)
+        ダブル押し(350ms以内に2回)      -> 0x02 Double   (承認)
         長押し(>=800ms)                -> 0x03 Long     (拒否)
         超長押し(>=3000ms, 押下中に送信) -> 0x04 VeryLong (緊急停止)
         生イベント Down/Up             -> 0x05 / 0x06
@@ -98,6 +102,9 @@ bool veryLongSent = false;
 // 単押し確定待ち (ダブル判定ウィンドウ)
 bool clickPending = false;
 unsigned long clickPendingMillis = 0;
+// HID key down をホストへ送ったか。承認待ち中は down を送らないが、
+// down 送信後に承認待ちへ遷移しても release は必ず送るための状態
+bool keyPressedToHost = false;
 
 bool ledButtonPressed = false;
 bool ledReleaseGlowActive = false;
@@ -221,8 +228,20 @@ void checkButton(unsigned long now) {
   btnPrev = pressed;
   btnChangeMillis = now;
 
-  // via キーマップのキーも生かす (デフォルトは KEY_NONE で無入力)
-  press_qmk_key(0, 0, layerInUse, pressed);
+  // via キーマップのキーも生かす (デフォルトは KEY_NONE で無入力)。
+  // 承認待ち中 (ST_APPROVAL) は key down を送らず、承認クリックが
+  // HIDキー入力として漏れないようにする。key down 済みなら、途中で
+  // 承認待ちに遷移していても release は必ず送る (押しっぱなし防止)
+  if (pressed) {
+    if (curState != ST_APPROVAL) {
+      press_qmk_key(0, 0, layerInUse, true);
+      keyPressedToHost = true;
+    }
+  } else if (keyPressedToHost) {
+    press_qmk_key(0, 0, layerInUse, false);
+    keyPressedToHost = false;
+  }
+  // 押下の視覚フィードバック (LEDのみ。HID抑止やプロトコル状態には影響しない)
   ledButtonPressed = pressed;
   if (!pressed) {
     ledReleaseGlowActive = true;

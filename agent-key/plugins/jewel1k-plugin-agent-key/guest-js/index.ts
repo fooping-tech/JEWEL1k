@@ -104,12 +104,6 @@ export interface ButtonEvent {
   timestamp_ms: number
 }
 
-export interface ApprovalProgress {
-  id: string
-  clicks: number
-  required: number
-}
-
 export interface PluginError {
   message: string
 }
@@ -145,8 +139,8 @@ export function setStatus(status: StatusUpdate): Promise<CurrentState> {
 
 /**
  * Submit an approval request. The decision is made ONLY by the physical
- * button (single click approve, two clicks for high risk, long press deny);
- * critical risk resolves as denied immediately.
+ * button (double press approve, long press deny); a single press never
+ * approves. Critical risk resolves as denied immediately.
  */
 export function requestApproval(request: ApprovalRequest): Promise<ApprovalOutcome> {
   return cmd('request_approval', { request })
@@ -184,21 +178,17 @@ export function onStateChanged(
   return listen<CurrentState>('agent-key://state-changed', (e) => callback(e.payload))
 }
 
-/** Fires for every approval lifecycle change (requested, progress, resolved). */
+/** Fires for every approval lifecycle change (requested, resolved). */
 export function onApprovalChanged(
   callback: (change: {
-    kind: 'requested' | 'progress' | 'resolved'
+    kind: 'requested' | 'resolved'
     request?: ApprovalRequest
-    progress?: ApprovalProgress
     resolution?: ApprovalResolution
   }) => void,
 ): Promise<UnlistenFn> {
   const subs = Promise.all([
     listen<ApprovalRequest>('agent-key://approval-requested', (e) =>
       callback({ kind: 'requested', request: e.payload }),
-    ),
-    listen<ApprovalProgress>('agent-key://approval-progress', (e) =>
-      callback({ kind: 'progress', progress: e.payload }),
     ),
     listen<ApprovalResolution>('agent-key://approval-resolved', (e) =>
       callback({ kind: 'resolved', resolution: e.payload }),

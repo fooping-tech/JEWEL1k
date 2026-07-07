@@ -239,6 +239,95 @@ fn hook_pre_tool_json_emits_permission_decision_and_exits_zero() {
 }
 
 #[test]
+fn hook_pre_tool_skips_gate_in_auto_mode() {
+    for mode in ["auto", "dontAsk", "bypassPermissions"] {
+        let (port, recorded) = spawn_server(Box::new(|req| match req.path.as_str() {
+            "/status" => (200, json!({})),
+            _ => (404, json!({ "error": "not found" })),
+        }));
+
+        let mut cmd = cli(port);
+        cmd.args(["hook", "pre-tool", "--risk", "high", "--json"])
+            .stdin(Stdio::piped());
+        let mut child = cmd.spawn().unwrap();
+        let payload = format!(
+            r#"{{"tool_name":"Bash","tool_input":{{}},"permission_mode":"{mode}"}}"#
+        );
+        child.stdin.take().unwrap().write_all(payload.as_bytes()).unwrap();
+        let out = child.wait_with_output().unwrap();
+        assert_eq!(out.status.code(), Some(0), "mode={mode}");
+
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let parsed: Value = serde_json::from_str(stdout.trim()).expect("hookOutput is JSON");
+        assert_eq!(
+            parsed["hookSpecificOutput"]["permissionDecision"], "allow",
+            "mode={mode}"
+        );
+
+        // No approval request may be made; only a tool_running status.
+        let recorded = recorded.lock().unwrap();
+        assert!(
+            recorded.iter().all(|r| r.path != "/approval"),
+            "mode={mode}: /approval must not be called"
+        );
+        assert_eq!(recorded[0].path, "/status");
+        assert_eq!(recorded[0].body["state"], "tool_running");
+    }
+}
+
+#[test]
+fn hook_pre_tool_always_gate_overrides_auto_mode() {
+    let (port, recorded) = spawn_server(Box::new(|req| match req.path.as_str() {
+        "/status" => (200, json!({})),
+        "/approval" => (200, json!({ "id": "a1", "decision": "approved" })),
+        _ => (404, json!({ "error": "not found" })),
+    }));
+
+    let mut cmd = cli(port);
+    cmd.args(["hook", "pre-tool", "--risk", "high", "--always-gate"])
+        .stdin(Stdio::piped());
+    let mut child = cmd.spawn().unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"tool_name":"Bash","tool_input":{},"permission_mode":"bypassPermissions"}"#)
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(0));
+
+    let recorded = recorded.lock().unwrap();
+    assert!(
+        recorded.iter().any(|r| r.path == "/approval"),
+        "--always-gate must still request approval"
+    );
+}
+
+#[test]
+fn hook_pre_tool_auto_mode_still_gates_critical() {
+    let (port, recorded) = spawn_server(Box::new(|req| match req.path.as_str() {
+        "/status" => (200, json!({})),
+        "/approval" => (200, json!({ "id": "a1", "decision": "denied" })),
+        _ => (404, json!({ "error": "not found" })),
+    }));
+
+    let mut cmd = cli(port);
+    cmd.args(["hook", "pre-tool", "--risk", "critical"]).stdin(Stdio::piped());
+    let mut child = cmd.spawn().unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"tool_name":"Bash","tool_input":{},"permission_mode":"auto"}"#)
+        .unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(2), "critical must stay denied in auto mode");
+
+    let recorded = recorded.lock().unwrap();
+    assert!(recorded.iter().any(|r| r.path == "/approval"));
+}
+
+#[test]
 fn hook_codex_notify_maps_turn_complete_to_done() {
     let (port, recorded) = spawn_server(Box::new(|_req| (200, json!({ "state": "done" }))));
     let (code, _, _) = run(cli(port).args([
